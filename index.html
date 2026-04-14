@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZAT — Painel de Segurança do Trabalho | Tirolez 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #12213B;
+  --navy2: #1A2F52;
+  --navy3: #0D1A2E;
+  --yellow: #F5C518;
+  --yellow2: #E6B400;
+  --white: #FFFFFF;
+  --gray50: #F8F7F4;
+  --gray100: #ECEAE4;
+  --gray200: #D3D1C7;
+  --gray400: #888780;
+  --gray600: #5F5E5A;
+  --green: #2E7D32;
+  --green-l: #E8F5E9;
+  --amber: #E65100;
+  --amber-l: #FFF3E0;
+  --red: #C62828;
+  --red-l: #FFEBEE;
+  --blue: #1565C0;
+  --blue-l: #E3F2FD;
+  --radius: 8px;
+  --radius-lg: 12px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Barlow',sans-serif;background:var(--gray50);color:var(--navy);min-height:100vh}
+
+/* ── TOP BAR ── */
+.topbar{background:var(--navy);display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px;position:sticky;top:0;z-index:100;border-bottom:3px solid var(--yellow)}
+.topbar-brand{display:flex;align-items:center;gap:12px}
+.topbar-badge{background:var(--yellow);color:var(--navy);font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:18px;padding:4px 10px;border-radius:4px;letter-spacing:1px}
+.topbar-title{color:var(--white);font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:17px;letter-spacing:.5px}
+.topbar-right{display:flex;align-items:center;gap:16px}
+.topbar-unit{background:var(--navy2);border:1px solid rgba(245,197,24,.3);color:var(--yellow);font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:14px;padding:6px 14px;border-radius:20px;cursor:pointer;display:flex;align-items:center;gap:6px}
+.topbar-unit:hover{background:rgba(245,197,24,.15)}
+.topbar-mes{background:transparent;border:1px solid rgba(255,255,255,.2);color:var(--white);font-size:13px;padding:5px 10px;border-radius:6px;cursor:pointer}
+.topbar-mes:hover{border-color:var(--yellow)}
+
+/* ── NAV TABS ── */
+.nav-tabs{background:var(--white);border-bottom:1px solid var(--gray200);display:flex;gap:0;padding:0 24px;overflow-x:auto}
+.nav-tab{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:14px;letter-spacing:.5px;padding:14px 20px;color:var(--gray400);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:.2s}
+.nav-tab:hover{color:var(--navy)}
+.nav-tab.active{color:var(--navy);border-bottom-color:var(--yellow)}
+
+/* ── SECTIONS ── */
+.section{display:none;padding:24px}
+.section.active{display:block}
+
+/* ── KPI GRID ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:24px}
+.kpi-card{background:var(--white);border-radius:var(--radius-lg);padding:16px 18px;border:1px solid var(--gray100);position:relative;overflow:hidden}
+.kpi-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px}
+.kpi-card.ok::before{background:var(--green)}
+.kpi-card.warn::before{background:var(--yellow)}
+.kpi-card.bad::before{background:var(--red)}
+.kpi-card.neutral::before{background:var(--gray200)}
+.kpi-label{font-size:11px;font-weight:500;color:var(--gray400);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.kpi-value{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:28px;color:var(--navy);line-height:1}
+.kpi-sub{font-size:11px;color:var(--gray400);margin-top:4px}
+.kpi-meta{font-size:11px;color:var(--gray600);margin-top:3px}
+.kpi-status{position:absolute;top:12px;right:14px;font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px}
+.status-ok{background:var(--green-l);color:var(--green)}
+.status-warn{background:var(--amber-l);color:var(--amber)}
+.status-bad{background:var(--red-l);color:var(--red)}
+.status-neu{background:var(--gray100);color:var(--gray600)}
+
+/* ── CHART GRID ── */
+.chart-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:24px}
+.chart-card{background:var(--white);border-radius:var(--radius-lg);padding:20px;border:1px solid var(--gray100)}
+.chart-card.full{grid-column:1/-1}
+.chart-title{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;color:var(--navy);margin-bottom:4px}
+.chart-sub{font-size:11px;color:var(--gray400);margin-bottom:16px}
+.chart-wrap{position:relative;height:220px}
+.chart-wrap.tall{height:280px}
+
+/* ── SECTION HEADER ── */
+.section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.section-hdr-title{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:18px;color:var(--navy)}
+.section-hdr-sub{font-size:12px;color:var(--gray400);margin-top:2px}
+
+/* ── TABLE ── */
+.tbl-wrap{background:var(--white);border-radius:var(--radius-lg);border:1px solid var(--gray100);overflow:hidden;margin-bottom:24px}
+table.ztbl{width:100%;border-collapse:collapse;font-size:12px}
+table.ztbl th{background:var(--navy);color:var(--white);font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:11px;padding:10px 12px;text-align:left;letter-spacing:.5px;white-space:nowrap}
+table.ztbl td{padding:9px 12px;border-bottom:1px solid var(--gray100);vertical-align:middle}
+table.ztbl tr:last-child td{border-bottom:none}
+table.ztbl tr:hover td{background:var(--gray50)}
+.badge{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.badge-ok{background:var(--green-l);color:var(--green)}
+.badge-warn{background:var(--amber-l);color:var(--amber)}
+.badge-bad{background:var(--red-l);color:var(--red)}
+.badge-neu{background:var(--gray100);color:var(--gray600)}
+
+/* ── COMPARATIVO ── */
+.comp-grid{display:grid;gap:12px}
+.comp-row{background:var(--white);border-radius:var(--radius);border:1px solid var(--gray100);overflow:hidden}
+.comp-ind-hdr{background:var(--navy2);color:var(--white);font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:13px;padding:8px 14px;display:flex;justify-content:space-between;align-items:center}
+.comp-units{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--gray100)}
+.comp-unit{background:var(--white);padding:10px 12px;text-align:center}
+.comp-unit-name{font-size:10px;color:var(--gray600);margin-bottom:4px;font-weight:500}
+.comp-unit-val{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;color:var(--navy)}
+.comp-unit-meta{font-size:9px;color:var(--gray400)}
+
+/* ── ENTRADA ── */
+.entrada-form{background:var(--white);border-radius:var(--radius-lg);border:1px solid var(--gray100);padding:20px;margin-bottom:16px}
+.form-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.form-field{display:flex;flex-direction:column;gap:4px}
+.form-label{font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:.4px}
+.form-input{padding:8px 10px;border:1px solid var(--gray200);border-radius:6px;font-size:13px;color:var(--navy);font-family:'Barlow',sans-serif;outline:none;background:var(--white)}
+.form-input:focus{border-color:var(--yellow);box-shadow:0 0 0 2px rgba(245,197,24,.2)}
+select.form-input{cursor:pointer}
+.btn{padding:9px 18px;border-radius:6px;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:14px;letter-spacing:.5px;cursor:pointer;border:none;transition:.15s}
+.btn-primary{background:var(--yellow);color:var(--navy)}
+.btn-primary:hover{background:var(--yellow2)}
+.btn-outline{background:transparent;border:1px solid var(--navy);color:var(--navy)}
+.btn-outline:hover{background:var(--navy);color:var(--white)}
+.btn-danger{background:transparent;border:1px solid var(--red);color:var(--red)}
+.btn-danger:hover{background:var(--red);color:var(--white)}
+.form-actions{display:flex;gap:10px;margin-top:16px}
+.save-toast{position:fixed;bottom:24px;right:24px;background:var(--green);color:var(--white);padding:12px 20px;border-radius:8px;font-size:13px;font-weight:600;display:none;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.save-toast.show{display:block;animation:slideIn .3s ease}
+@keyframes slideIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* ── MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--white);border-radius:var(--radius-lg);padding:24px;width:480px;max-width:95vw;max-height:85vh;overflow-y:auto}
+.modal-title{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:20px;color:var(--navy);margin-bottom:16px}
+.unit-list{display:grid;gap:8px}
+.unit-btn{padding:12px 16px;border:2px solid var(--gray200);border-radius:8px;text-align:left;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:15px;color:var(--navy);background:var(--white);transition:.15s}
+.unit-btn:hover{border-color:var(--yellow);background:var(--gray50)}
+.unit-btn.active{border-color:var(--yellow);background:rgba(245,197,24,.08)}
+
+/* ── TOOLTIP ── */
+.legend-row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:12px}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--gray600)}
+.leg-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+
+/* ── EMPTY STATE ── */
+.empty{text-align:center;padding:40px;color:var(--gray400)}
+.empty-icon{font-size:32px;margin-bottom:8px}
+.empty-text{font-size:14px}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .chart-grid{grid-template-columns:1fr}
+  .comp-units{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:600px){
+  .kpi-grid{grid-template-columns:1fr}
+  .form-grid{grid-template-columns:1fr 1fr}
+  .section{padding:14px}
+}
+</style>
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+  import { getFirestore, doc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+  import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+
+  const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyAgMY6VQJldqJnDsIPpXjRFtDnYtxDso",
+    authDomain:        "zat-tirolez-2026.firebaseapp.com",
+    projectId:         "zat-tirolez-2026",
+    storageBucket:     "zat-tirolez-2026.appspot.com",
+    messagingSenderId: "566566967596",
+    appId:             "1:566566967596:web:a8a59c9e10b84cd9bcf489"
+  };
+
+  try {
+    const app  = initializeApp(FIREBASE_CONFIG);
+    const db   = getFirestore(app);
+    const auth = getAuth(app);
+
+    window._fb = { app, db, auth, doc, setDoc, onSnapshot,
+      signIn:      signInWithEmailAndPassword,
+      signOut:     signOut,
+      onAuthState: onAuthStateChanged };
+
+    window._fb_ready = true;
+    console.log('Firebase SDK carregado com sucesso');
+  } catch(e) {
+    console.error('Firebase SDK error:', e);
+    window._fb_ready = false;
+  }
+</script>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="topbar-badge">ZAT</span>
+    <span class="topbar-title">PAINEL DE SEGURANÇA DO TRABALHO — TIROLEZ 2026</span>
+  </div>
+  <div class="topbar-right">
+    <div class="topbar-unit" onclick="openUnitModal()" id="unitDisplay">
+      <span>▼</span><span id="unitName">Todas as Unidades</span>
+    </div>
+    <button class="topbar-unit" id="adminBtn" onclick="openLoginModal()" style="background:rgba(245,197,24,.12);border-color:rgba(245,197,24,.4)">
+      <span>🔐</span><span>Admin</span>
+    </button>
+    <button class="topbar-unit" id="logoutBtn" onclick="logoutAdmin()" style="display:none;background:rgba(198,40,40,.15);border-color:rgba(198,40,40,.4);color:#ff6b6b">
+      <span>↩</span><span>Sair</span>
+    </button>
+    <select class="topbar-mes" id="mesSelect" onchange="renderAll()">
+      <option value="0">Jan</option><option value="1">Fev</option><option value="2">Mar</option>
+      <option value="3">Abr</option><option value="4">Mai</option><option value="5">Jun</option>
+      <option value="6">Jul</option><option value="7">Ago</option><option value="8">Set</option>
+      <option value="9">Out</option><option value="10">Nov</option><option value="11">Dez</option>
+    </select>
+  </div>
+</div>
+
+<!-- NAV TABS -->
+<div class="nav-tabs">
+  <div class="nav-tab active" onclick="showTab('dashboard')">Dashboard</div>
+  <div class="nav-tab" onclick="showTab('painel')">Painel por Unidade</div>
+  <div class="nav-tab" onclick="showTab('comparativo')">Comparativo</div>
+  <div class="nav-tab" onclick="showTab('tabela')">Tabela de Dados</div>
+  <div class="nav-tab" onclick="showTab('entrada')" style="display:none">Entrada de Dados</div>
+</div>
+
+
+<!-- BANNER DE CONEXÃO -->
+<div id="connBanner" style="display:none;font-size:12px;font-weight:500;padding:7px 24px;text-align:center;border-bottom:1px solid rgba(0,0,0,.08)"></div>
+
+<!-- MODAL LOGIN ADMIN -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-title">🔐 Acesso Admin — ZAT</div>
+    <p style="font-size:13px;color:var(--gray600);margin-bottom:16px">
+      Apenas o gestor de SSMA pode lançar e editar dados.
+      Os gerentes visualizam sem precisar de login.
+    </p>
+    <div class="form-field" style="margin-bottom:12px">
+      <label class="form-label">Senha</label>
+      <input type="password" class="form-input" id="loginPassword" placeholder="••••••••"
+        onkeydown="if(event.key==='Enter')loginAdmin(this.value)">
+    </div>
+    <div id="loginError" style="color:var(--red);font-size:12px;margin-bottom:12px;min-height:16px"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="loginAdmin(document.getElementById('loginPassword').value)">Entrar</button>
+      <button class="btn btn-outline" onclick="closeLoginModal()">Cancelar</button>
+    </div>
+    <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--gray100);font-size:11px;color:var(--gray400)">
+      Senha padrão: <code>zat2026tirolez</code> — altere após o primeiro acesso
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SETUP FIREBASE -->
+<div class="modal-overlay" id="setupModal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-title">⚙️ Configurar Firebase (tempo real)</div>
+    <div style="background:var(--blue-l);border-radius:8px;padding:14px;margin-bottom:16px;font-size:12px;line-height:1.7;color:var(--navy)">
+      <strong>Passo a passo (5 minutos):</strong><br>
+      1. Acesse <a href="https://console.firebase.google.com" target="_blank" style="color:var(--blue)">console.firebase.google.com</a><br>
+      2. Clique em <strong>Adicionar projeto</strong> → nome: <code>zat-tirolez-2026</code><br>
+      3. No menu lateral: <strong>Build → Firestore Database</strong> → Criar banco → Modo produção<br>
+      4. No menu lateral: <strong>Authentication</strong> → Sign-in method → Email/senha → Ativar<br>
+      5. Authentication → Users → Adicionar usuário: <code>admin@zat.tirolez.com.br</code> + sua senha<br>
+      6. Configurações do projeto → Seus apps → Adicionar app Web → Copie as credenciais abaixo
+    </div>
+    <div style="font-size:12px;color:var(--gray600);margin-bottom:12px">Cole as credenciais do Firebase e salve o arquivo HTML — o sistema conectará automaticamente.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div class="form-field">
+        <label class="form-label">apiKey</label>
+        <input class="form-input" id="cfg-apiKey" placeholder="AIzaSy...">
+      </div>
+      <div class="form-field">
+        <label class="form-label">authDomain</label>
+        <input class="form-input" id="cfg-authDomain" placeholder="projeto.firebaseapp.com">
+      </div>
+      <div class="form-field">
+        <label class="form-label">projectId</label>
+        <input class="form-input" id="cfg-projectId" placeholder="zat-tirolez-2026">
+      </div>
+      <div class="form-field">
+        <label class="form-label">appId</label>
+        <input class="form-input" id="cfg-appId" placeholder="1:123456:web:abc123">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" onclick="gerarHTMLConfigurado()">📥 Baixar HTML Configurado</button>
+      <button class="btn btn-outline" onclick="closeSetupModal()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- SECTIONS -->
+<div id="sec-dashboard" class="section active"></div>
+<div id="sec-painel" class="section"></div>
+<div id="sec-comparativo" class="section"></div>
+<div id="sec-tabela" class="section"></div>
+<div id="sec-entrada" class="section"></div>
+
+<!-- MODAL UNIDADE -->
+<div class="modal-overlay" id="unitModal">
+  <div class="modal">
+    <div class="modal-title">Selecionar Unidade</div>
+    <div class="unit-list" id="unitList"></div>
+    <div style="margin-top:16px"><button class="btn btn-outline" onclick="closeUnitModal()">Cancelar</button></div>
+  </div>
+</div>
+
+<div class="save-toast" id="saveToast">✓ Dados salvos com sucesso!</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// DADOS E CONFIGURAÇÃO
+// ═══════════════════════════════════════════════════════════════
+const UNITS = ['Tiros','Arapuá','Monte Aprazível','Centro de Distribuição',
+               'Caxambu do Sul','Lins','Levitare','Merchandising','Vendas','Matriz ADM'];
+const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const INDICATORS = [
+  {name:'Taxa de Frequência Combinada (TFC)', key:'tfc',    unit:'índice', tipo:'menor', highlight:true},
+  {name:'Taxa de Gravidade (TG)',              key:'tg',     unit:'índice', tipo:'menor', highlight:true},
+  {name:'Absenteísmo',                         key:'abs',    unit:'%',      tipo:'menor', highlight:true},
+  {name:'Turnover',                            key:'turn',   unit:'%',      tipo:'menor', highlight:true},
+  {name:'Ac. Típico COM Afastamento',          key:'aca',    unit:'nº',     tipo:'menor', highlight:true},
+  {name:'Ac. Típico SEM Afastamento',          key:'asa',    unit:'nº',     tipo:'menor', highlight:false},
+  {name:'Incidentes',                          key:'inc',    unit:'nº',     tipo:'menor', highlight:false},
+  {name:'Desvios',                             key:'dev',    unit:'nº',     tipo:'controle', highlight:false},
+  {name:'Ac. Trajeto COM Afastamento',         key:'traj_ca',unit:'nº',     tipo:'menor', highlight:false},
+  {name:'Ac. Trajeto SEM Afastamento',         key:'traj_sa',unit:'nº',     tipo:'menor', highlight:false},
+  {name:'Ac. Terceiros COM Afastamento',       key:'terc_ca',unit:'nº',     tipo:'menor', highlight:false},
+  {name:'Ac. Terceiros SEM Afastamento',       key:'terc_sa',unit:'nº',     tipo:'menor', highlight:false},
+  {name:'Doença Ocupacional COM Afastamento',  key:'do_ca',  unit:'nº',     tipo:'menor', highlight:false},
+  {name:'Doença Ocupacional SEM Afastamento',  key:'do_sa',  unit:'nº',     tipo:'menor', highlight:false},
+  {name:'FAP',                                 key:'fap',    unit:'índice', tipo:'menor', highlight:true},
+  {name:'Gastos CC Segurança',                 key:'gasto',  unit:'R$',     tipo:'menor', highlight:true},
+];
+
+
+
+// ═══════════════════════════════════════════════════════════════════════
+// FIREBASE BACKEND — tempo real compartilhado
+// ═══════════════════════════════════════════════════════════════════════
+
+// ── Dados em memória (cache local do Firestore) ──
+let DB = {};
+let DB_READY = false;
+let DB_LISTENER = null;
+
+// ── Config Firebase (preencher com suas credenciais) ──
+const FIREBASE_CONFIG = {
+  // INSTRUÇÕES: Acesse https://console.firebase.google.com
+  // → Crie um projeto → Adicione um app Web → Copie as credenciais aqui
+  apiKey:            "AIzaSyAgMY6VQJldqJnDsIPpXjRFtDnYtxDso",
+  authDomain:        "zat-tirolez-2026.firebaseapp.com",
+  projectId:         "zat-tirolez-2026",
+  storageBucket:     "zat-tirolez-2026.appspot.com",
+  messagingSenderId: "566566967596",
+  appId:             "1:566566967596:web:a8a59c9e10b84cd9bcf489"
+};
+
+// ── MODO OFFLINE (fallback enquanto Firebase não configurado) ──
+const FIREBASE_CONFIGURED = FIREBASE_CONFIG.apiKey !== "AIzaSyAgMY6VQJldqJnDsIPpXjRFtDnYtxDso";
+
+// ── DADOS PRÉ-CARREGADOS DO EXCEL ──────────────────────────────────────
+const PRELOAD_DATA = {"Matriz ADM|abs|real|0":0.29,"Matriz ADM|abs|real|1":0.22,"Tiros|abs|real|0":1.6,"Tiros|abs|real|1":1.71,"Arapuá|abs|real|0":1.56,"Arapuá|abs|real|1":1.44,"Monte Aprazível|abs|real|0":1.03,"Monte Aprazível|abs|real|1":0.85,"Centro de Distribuição|abs|real|0":1.61,"Centro de Distribuição|abs|real|1":1.92,"Caxambu do Sul|abs|real|0":1.24,"Caxambu do Sul|abs|real|1":1.14,"Lins|abs|real|0":1.72,"Lins|abs|real|1":0.87,"Matriz ADM|turn|real|0":1.7,"Matriz ADM|turn|real|1":1.77,"Tiros|turn|real|0":2.33,"Tiros|turn|real|1":2.33,"Arapuá|turn|real|0":1.77,"Arapuá|turn|real|1":1.59,"Monte Aprazível|turn|real|0":1.62,"Monte Aprazível|turn|real|1":0.27,"Centro de Distribuição|turn|real|0":1.61,"Centro de Distribuição|turn|real|1":2.02,"Caxambu do Sul|turn|real|0":5.86,"Caxambu do Sul|turn|real|1":4.83,"Lins|turn|real|0":0.57,"Lins|turn|real|1":1.43,"Matriz ADM|tfc|meta|0":2.75,"Matriz ADM|tfc|meta|1":2.75,"Matriz ADM|tfc|meta|2":2.75,"Matriz ADM|tfc|meta|3":2.75,"Matriz ADM|tfc|meta|4":2.75,"Matriz ADM|tfc|meta|5":2.75,"Matriz ADM|tfc|meta|6":2.75,"Matriz ADM|tfc|meta|7":2.75,"Matriz ADM|tfc|meta|8":2.75,"Matriz ADM|tfc|meta|9":2.75,"Matriz ADM|tfc|meta|10":2.75,"Matriz ADM|tfc|meta|11":2.75,"Matriz ADM|tfc|real|0":0.0,"Matriz ADM|tfc|real|1":0.0,"Matriz ADM|tfc|real|2":0.0,"Tiros|tfc|meta|0":2.75,"Tiros|tfc|meta|1":2.75,"Tiros|tfc|meta|2":2.75,"Tiros|tfc|meta|3":2.75,"Tiros|tfc|meta|4":2.75,"Tiros|tfc|meta|5":2.75,"Tiros|tfc|meta|6":2.75,"Tiros|tfc|meta|7":2.75,"Tiros|tfc|meta|8":2.75,"Tiros|tfc|meta|9":2.75,"Tiros|tfc|meta|10":2.75,"Tiros|tfc|meta|11":2.75,"Tiros|tfc|real|0":0.0,"Tiros|tfc|real|1":0.0,"Tiros|tfc|real|2":18.860807,"Arapuá|tfc|meta|0":2.75,"Arapuá|tfc|meta|1":2.75,"Arapuá|tfc|meta|2":2.75,"Arapuá|tfc|meta|3":2.75,"Arapuá|tfc|meta|4":2.75,"Arapuá|tfc|meta|5":2.75,"Arapuá|tfc|meta|6":2.75,"Arapuá|tfc|meta|7":2.75,"Arapuá|tfc|meta|8":2.75,"Arapuá|tfc|meta|9":2.75,"Arapuá|tfc|meta|10":2.75,"Arapuá|tfc|meta|11":2.75,"Arapuá|tfc|real|0":0.0,"Arapuá|tfc|real|1":0.0,"Arapuá|tfc|real|2":0.0,"Monte Aprazível|tfc|meta|0":2.75,"Monte Aprazível|tfc|meta|1":2.75,"Monte Aprazível|tfc|meta|2":2.75,"Monte Aprazível|tfc|meta|3":2.75,"Monte Aprazível|tfc|meta|4":2.75,"Monte Aprazível|tfc|meta|5":2.75,"Monte Aprazível|tfc|meta|6":2.75,"Monte Aprazível|tfc|meta|7":2.75,"Monte Aprazível|tfc|meta|8":2.75,"Monte Aprazível|tfc|meta|9":2.75,"Monte Aprazível|tfc|meta|10":2.75,"Monte Aprazível|tfc|meta|11":2.75,"Monte Aprazível|tfc|real|0":0.0,"Monte Aprazível|tfc|real|1":0.0,"Monte Aprazível|tfc|real|2":0.0,"Centro de Distribuição|tfc|meta|0":2.75,"Centro de Distribuição|tfc|meta|1":2.75,"Centro de Distribuição|tfc|meta|2":2.75,"Centro de Distribuição|tfc|meta|3":2.75,"Centro de Distribuição|tfc|meta|4":2.75,"Centro de Distribuição|tfc|meta|5":2.75,"Centro de Distribuição|tfc|meta|6":2.75,"Centro de Distribuição|tfc|meta|7":2.75,"Centro de Distribuição|tfc|meta|8":2.75,"Centro de Distribuição|tfc|meta|9":2.75,"Centro de Distribuição|tfc|meta|10":2.75,"Centro de Distribuição|tfc|meta|11":2.75,"Centro de Distribuição|tfc|real|0":0.0,"Centro de Distribuição|tfc|real|1":0.0,"Centro de Distribuição|tfc|real|2":0.0,"Caxambu do Sul|tfc|meta|0":2.75,"Caxambu do Sul|tfc|meta|1":2.75,"Caxambu do Sul|tfc|meta|2":2.75,"Caxambu do Sul|tfc|meta|3":2.75,"Caxambu do Sul|tfc|meta|4":2.75,"Caxambu do Sul|tfc|meta|5":2.75,"Caxambu do Sul|tfc|meta|6":2.75,"Caxambu do Sul|tfc|meta|7":2.75,"Caxambu do Sul|tfc|meta|8":2.75,"Caxambu do Sul|tfc|meta|9":2.75,"Caxambu do Sul|tfc|meta|10":2.75,"Caxambu do Sul|tfc|meta|11":2.75,"Caxambu do Sul|tfc|real|0":0.0,"Caxambu do Sul|tfc|real|1":0.0,"Caxambu do Sul|tfc|real|2":0.0,"Lins|tfc|meta|0":2.75,"Lins|tfc|meta|1":2.75,"Lins|tfc|meta|2":2.75,"Lins|tfc|meta|3":2.75,"Lins|tfc|meta|4":2.75,"Lins|tfc|meta|5":2.75,"Lins|tfc|meta|6":2.75,"Lins|tfc|meta|7":2.75,"Lins|tfc|meta|8":2.75,"Lins|tfc|meta|9":2.75,"Lins|tfc|meta|10":2.75,"Lins|tfc|meta|11":2.75,"Lins|tfc|real|0":0.0,"Lins|tfc|real|1":0.0,"Lins|tfc|real|2":0.0,"Matriz ADM|tg|meta|0":30.46,"Matriz ADM|tg|meta|1":30.46,"Matriz ADM|tg|meta|2":30.46,"Matriz ADM|tg|meta|3":30.46,"Matriz ADM|tg|meta|4":30.46,"Matriz ADM|tg|meta|5":30.46,"Matriz ADM|tg|meta|6":30.46,"Matriz ADM|tg|meta|7":30.46,"Matriz ADM|tg|meta|8":30.46,"Matriz ADM|tg|meta|9":30.46,"Matriz ADM|tg|meta|10":30.46,"Matriz ADM|tg|meta|11":30.46,"Matriz ADM|tg|real|0":0.0,"Matriz ADM|tg|real|1":0.0,"Tiros|tg|meta|0":161.15,"Tiros|tg|meta|1":161.15,"Tiros|tg|meta|2":161.15,"Tiros|tg|meta|3":161.15,"Tiros|tg|meta|4":161.15,"Tiros|tg|meta|5":161.15,"Tiros|tg|meta|6":161.15,"Tiros|tg|meta|7":161.15,"Tiros|tg|meta|8":161.15,"Tiros|tg|meta|9":161.15,"Tiros|tg|meta|10":161.15,"Tiros|tg|meta|11":161.15,"Tiros|tg|real|0":0.0,"Tiros|tg|real|1":0.0,"Arapuá|tg|meta|0":29.32,"Arapuá|tg|meta|1":29.32,"Arapuá|tg|meta|2":29.32,"Arapuá|tg|meta|3":29.32,"Arapuá|tg|meta|4":29.32,"Arapuá|tg|meta|5":29.32,"Arapuá|tg|meta|6":29.32,"Arapuá|tg|meta|7":29.32,"Arapuá|tg|meta|8":29.32,"Arapuá|tg|meta|9":29.32,"Arapuá|tg|meta|10":29.32,"Arapuá|tg|meta|11":29.32,"Arapuá|tg|real|0":0.0,"Arapuá|tg|real|1":0.0,"Monte Aprazível|tg|meta|0":282.5,"Monte Aprazível|tg|meta|1":282.5,"Monte Aprazível|tg|meta|2":282.5,"Monte Aprazível|tg|meta|3":282.5,"Monte Aprazível|tg|meta|4":282.5,"Monte Aprazível|tg|meta|5":282.5,"Monte Aprazível|tg|meta|6":282.5,"Monte Aprazível|tg|meta|7":282.5,"Monte Aprazível|tg|meta|8":282.5,"Monte Aprazível|tg|meta|9":282.5,"Monte Aprazível|tg|meta|10":282.5,"Monte Aprazível|tg|meta|11":282.5,"Monte Aprazível|tg|real|0":0.0,"Monte Aprazível|tg|real|1":0.0,"Centro de Distribuição|tg|meta|0":169.63,"Centro de Distribuição|tg|meta|1":169.63,"Centro de Distribuição|tg|meta|2":169.63,"Centro de Distribuição|tg|meta|3":169.63,"Centro de Distribuição|tg|meta|4":169.63,"Centro de Distribuição|tg|meta|5":169.63,"Centro de Distribuição|tg|meta|6":169.63,"Centro de Distribuição|tg|meta|7":169.63,"Centro de Distribuição|tg|meta|8":169.63,"Centro de Distribuição|tg|meta|9":169.63,"Centro de Distribuição|tg|meta|10":169.63,"Centro de Distribuição|tg|meta|11":169.63,"Centro de Distribuição|tg|real|0":0.0,"Centro de Distribuição|tg|real|1":0.0,"Caxambu do Sul|tg|meta|0":169.63,"Caxambu do Sul|tg|meta|1":169.63,"Caxambu do Sul|tg|meta|2":169.63,"Caxambu do Sul|tg|meta|3":169.63,"Caxambu do Sul|tg|meta|4":169.63,"Caxambu do Sul|tg|meta|5":169.63,"Caxambu do Sul|tg|meta|6":169.63,"Caxambu do Sul|tg|meta|7":169.63,"Caxambu do Sul|tg|meta|8":169.63,"Caxambu do Sul|tg|meta|9":169.63,"Caxambu do Sul|tg|meta|10":169.63,"Caxambu do Sul|tg|meta|11":169.63,"Caxambu do Sul|tg|real|0":0.0,"Caxambu do Sul|tg|real|1":0.0,"Lins|tg|meta|0":336.24,"Lins|tg|meta|1":336.24,"Lins|tg|meta|2":336.24,"Lins|tg|meta|3":336.24,"Lins|tg|meta|4":336.24,"Lins|tg|meta|5":336.24,"Lins|tg|meta|6":336.24,"Lins|tg|meta|7":336.24,"Lins|tg|meta|8":336.24,"Lins|tg|meta|9":336.24,"Lins|tg|meta|10":336.24,"Lins|tg|meta|11":336.24,"Lins|tg|real|0":0.0,"Lins|tg|real|1":0.0,"Matriz ADM|aca|real|0":0.0,"Matriz ADM|aca|real|1":0.0,"Matriz ADM|aca|real|2":0.0,"Tiros|aca|real|0":0.0,"Tiros|aca|real|1":0.0,"Tiros|aca|real|2":1.0,"Arapuá|aca|real|0":0.0,"Arapuá|aca|real|1":0.0,"Arapuá|aca|real|2":0.0,"Monte Aprazível|aca|real|0":0.0,"Monte Aprazível|aca|real|1":0.0,"Monte Aprazível|aca|real|2":0.0,"Centro de Distribuição|aca|real|0":0.0,"Centro de Distribuição|aca|real|1":0.0,"Centro de Distribuição|aca|real|2":0.0,"Caxambu do Sul|aca|real|0":0.0,"Caxambu do Sul|aca|real|1":0.0,"Caxambu do Sul|aca|real|2":0.0,"Lins|aca|real|0":0.0,"Lins|aca|real|1":0.0,"Lins|aca|real|2":0.0,"Matriz ADM|asa|real|0":0.0,"Matriz ADM|asa|real|1":0.0,"Matriz ADM|asa|real|2":0.0,"Tiros|asa|real|0":0.0,"Tiros|asa|real|1":0.0,"Tiros|asa|real|2":0.0,"Arapuá|asa|real|0":0.0,"Arapuá|asa|real|1":0.0,"Arapuá|asa|real|2":0.0,"Monte Aprazível|asa|real|0":0.0,"Monte Aprazível|asa|real|1":0.0,"Monte Aprazível|asa|real|2":0.0,"Centro de Distribuição|asa|real|0":0.0,"Centro de Distribuição|asa|real|1":0.0,"Centro de Distribuição|asa|real|2":0.0,"Caxambu do Sul|asa|real|0":0.0,"Caxambu do Sul|asa|real|1":0.0,"Caxambu do Sul|asa|real|2":0.0,"Lins|asa|real|0":0.0,"Lins|asa|real|1":0.0,"Lins|asa|real|2":0.0,"Matriz ADM|inc|real|0":2.0,"Matriz ADM|inc|real|1":1.0,"Tiros|inc|real|0":7.0,"Tiros|inc|real|1":6.0,"Arapuá|inc|real|0":16.0,"Arapuá|inc|real|1":12.0,"Monte Aprazível|inc|real|0":3.0,"Monte Aprazível|inc|real|1":3.0,"Centro de Distribuição|inc|real|0":0.0,"Centro de Distribuição|inc|real|1":0.0,"Caxambu do Sul|inc|real|0":3.0,"Caxambu do Sul|inc|real|1":2.0,"Lins|inc|real|0":0.0,"Lins|inc|real|1":1.0,"Matriz ADM|fap|meta|0":1.0,"Matriz ADM|fap|meta|1":1.0,"Matriz ADM|fap|meta|2":1.0,"Matriz ADM|fap|meta|3":1.0,"Matriz ADM|fap|meta|4":1.0,"Matriz ADM|fap|meta|5":1.0,"Matriz ADM|fap|meta|6":1.0,"Matriz ADM|fap|meta|7":1.0,"Matriz ADM|fap|meta|8":1.0,"Matriz ADM|fap|meta|9":1.0,"Matriz ADM|fap|meta|10":1.0,"Matriz ADM|fap|meta|11":1.0,"Matriz ADM|fap|real|0":0.8628,"Matriz ADM|fap|real|1":0.8628,"Tiros|fap|meta|0":1.0,"Tiros|fap|meta|1":1.0,"Tiros|fap|meta|2":1.0,"Tiros|fap|meta|3":1.0,"Tiros|fap|meta|4":1.0,"Tiros|fap|meta|5":1.0,"Tiros|fap|meta|6":1.0,"Tiros|fap|meta|7":1.0,"Tiros|fap|meta|8":1.0,"Tiros|fap|meta|9":1.0,"Tiros|fap|meta|10":1.0,"Tiros|fap|meta|11":1.0,"Tiros|fap|real|0":1.4417,"Tiros|fap|real|1":1.4417,"Arapuá|fap|meta|0":1.0,"Arapuá|fap|meta|1":1.0,"Arapuá|fap|meta|2":1.0,"Arapuá|fap|meta|3":1.0,"Arapuá|fap|meta|4":1.0,"Arapuá|fap|meta|5":1.0,"Arapuá|fap|meta|6":1.0,"Arapuá|fap|meta|7":1.0,"Arapuá|fap|meta|8":1.0,"Arapuá|fap|meta|9":1.0,"Arapuá|fap|meta|10":1.0,"Arapuá|fap|meta|11":1.0,"Arapuá|fap|real|0":1.0731,"Arapuá|fap|real|1":1.0731,"Monte Aprazível|fap|meta|0":1.0,"Monte Aprazível|fap|meta|1":1.0,"Monte Aprazível|fap|meta|2":1.0,"Monte Aprazível|fap|meta|3":1.0,"Monte Aprazível|fap|meta|4":1.0,"Monte Aprazível|fap|meta|5":1.0,"Monte Aprazível|fap|meta|6":1.0,"Monte Aprazível|fap|meta|7":1.0,"Monte Aprazível|fap|meta|8":1.0,"Monte Aprazível|fap|meta|9":1.0,"Monte Aprazível|fap|meta|10":1.0,"Monte Aprazível|fap|meta|11":1.0,"Monte Aprazível|fap|real|0":0.5,"Monte Aprazível|fap|real|1":0.5,"Centro de Distribuição|fap|meta|0":1.0,"Centro de Distribuição|fap|meta|1":1.0,"Centro de Distribuição|fap|meta|2":1.0,"Centro de Distribuição|fap|meta|3":1.0,"Centro de Distribuição|fap|meta|4":1.0,"Centro de Distribuição|fap|meta|5":1.0,"Centro de Distribuição|fap|meta|6":1.0,"Centro de Distribuição|fap|meta|7":1.0,"Centro de Distribuição|fap|meta|8":1.0,"Centro de Distribuição|fap|meta|9":1.0,"Centro de Distribuição|fap|meta|10":1.0,"Centro de Distribuição|fap|meta|11":1.0,"Centro de Distribuição|fap|real|0":1.5271,"Centro de Distribuição|fap|real|1":1.5271,"Caxambu do Sul|fap|meta|0":1.0,"Caxambu do Sul|fap|meta|1":1.0,"Caxambu do Sul|fap|meta|2":1.0,"Caxambu do Sul|fap|meta|3":1.0,"Caxambu do Sul|fap|meta|4":1.0,"Caxambu do Sul|fap|meta|5":1.0,"Caxambu do Sul|fap|meta|6":1.0,"Caxambu do Sul|fap|meta|7":1.0,"Caxambu do Sul|fap|meta|8":1.0,"Caxambu do Sul|fap|meta|9":1.0,"Caxambu do Sul|fap|meta|10":1.0,"Caxambu do Sul|fap|meta|11":1.0,"Caxambu do Sul|fap|real|0":1.3651,"Caxambu do Sul|fap|real|1":1.3651,"Lins|fap|meta|0":1.0,"Lins|fap|meta|1":1.0,"Lins|fap|meta|2":1.0,"Lins|fap|meta|3":1.0,"Lins|fap|meta|4":1.0,"Lins|fap|meta|5":1.0,"Lins|fap|meta|6":1.0,"Lins|fap|meta|7":1.0,"Lins|fap|meta|8":1.0,"Lins|fap|meta|9":1.0,"Lins|fap|meta|10":1.0,"Lins|fap|meta|11":1.0,"Lins|fap|real|0":1.2354,"Lins|fap|real|1":1.2354,"Matriz ADM|gasto|meta|0":219508.93,"Matriz ADM|gasto|meta|1":219508.93,"Matriz ADM|gasto|meta|2":219508.93,"Matriz ADM|gasto|meta|3":219508.93,"Matriz ADM|gasto|meta|4":219508.93,"Matriz ADM|gasto|meta|5":219508.93,"Matriz ADM|gasto|meta|6":219508.93,"Matriz ADM|gasto|meta|7":219508.93,"Matriz ADM|gasto|meta|8":219508.93,"Matriz ADM|gasto|meta|9":219508.93,"Matriz ADM|gasto|meta|10":219508.93,"Matriz ADM|gasto|meta|11":219508.93,"Matriz ADM|gasto|real|0":167786.91,"Matriz ADM|gasto|real|1":154418.41,"Tiros|gasto|meta|0":32667.29,"Tiros|gasto|meta|1":32667.29,"Tiros|gasto|meta|2":32667.29,"Tiros|gasto|meta|3":32667.29,"Tiros|gasto|meta|4":32667.29,"Tiros|gasto|meta|5":32667.29,"Tiros|gasto|meta|6":32667.29,"Tiros|gasto|meta|7":32667.29,"Tiros|gasto|meta|8":32667.29,"Tiros|gasto|meta|9":32667.29,"Tiros|gasto|meta|10":32667.29,"Tiros|gasto|meta|11":32667.29,"Tiros|gasto|real|0":24797.95,"Tiros|gasto|real|1":42284.29,"Arapuá|gasto|meta|0":40113.09,"Arapuá|gasto|meta|1":40113.09,"Arapuá|gasto|meta|2":40113.09,"Arapuá|gasto|meta|3":40113.09,"Arapuá|gasto|meta|4":40113.09,"Arapuá|gasto|meta|5":40113.09,"Arapuá|gasto|meta|6":40113.09,"Arapuá|gasto|meta|7":40113.09,"Arapuá|gasto|meta|8":40113.09,"Arapuá|gasto|meta|9":40113.09,"Arapuá|gasto|meta|10":40113.09,"Arapuá|gasto|meta|11":40113.09,"Arapuá|gasto|real|0":17124.98,"Arapuá|gasto|real|1":55331.66,"Monte Aprazível|gasto|meta|0":15462.05,"Monte Aprazível|gasto|meta|1":15462.05,"Monte Aprazível|gasto|meta|2":15462.05,"Monte Aprazível|gasto|meta|3":15462.05,"Monte Aprazível|gasto|meta|4":15462.05,"Monte Aprazível|gasto|meta|5":15462.05,"Monte Aprazível|gasto|meta|6":15462.05,"Monte Aprazível|gasto|meta|7":15462.05,"Monte Aprazível|gasto|meta|8":15462.05,"Monte Aprazível|gasto|meta|9":15462.05,"Monte Aprazível|gasto|meta|10":15462.05,"Monte Aprazível|gasto|meta|11":15462.05,"Monte Aprazível|gasto|real|0":13518.77,"Monte Aprazível|gasto|real|1":23968.55,"Centro de Distribuição|gasto|real|0":16290.93,"Centro de Distribuição|gasto|real|1":29020.19,"Caxambu do Sul|gasto|meta|0":16094.48,"Caxambu do Sul|gasto|meta|1":16094.48,"Caxambu do Sul|gasto|meta|2":16094.48,"Caxambu do Sul|gasto|meta|3":16094.48,"Caxambu do Sul|gasto|meta|4":16094.48,"Caxambu do Sul|gasto|meta|5":16094.48,"Caxambu do Sul|gasto|meta|6":16094.48,"Caxambu do Sul|gasto|meta|7":16094.48,"Caxambu do Sul|gasto|meta|8":16094.48,"Caxambu do Sul|gasto|meta|9":16094.48,"Caxambu do Sul|gasto|meta|10":16094.48,"Caxambu do Sul|gasto|meta|11":16094.48,"Caxambu do Sul|gasto|real|0":5796.7,"Caxambu do Sul|gasto|real|1":12905.76,"Lins|gasto|meta|0":19183.53,"Lins|gasto|meta|1":19183.53,"Lins|gasto|meta|2":19183.53,"Lins|gasto|meta|3":19183.53,"Lins|gasto|meta|4":19183.53,"Lins|gasto|meta|5":19183.53,"Lins|gasto|meta|6":19183.53,"Lins|gasto|meta|7":19183.53,"Lins|gasto|meta|8":19183.53,"Lins|gasto|meta|9":19183.53,"Lins|gasto|meta|10":19183.53,"Lins|gasto|meta|11":19183.53,"Lins|gasto|real|0":16127.95,"Lins|gasto|real|1":18098.01,"Matriz ADM|dev|real|0":0.0,"Matriz ADM|dev|real|1":0.0,"Tiros|dev|real|0":0.0,"Tiros|dev|real|1":0.0,"Arapuá|dev|real|0":7.0,"Arapuá|dev|real|1":7.0,"Monte Aprazível|dev|real|0":2.0,"Monte Aprazível|dev|real|1":0.0,"Centro de Distribuição|dev|real|0":0.0,"Centro de Distribuição|dev|real|1":0.0,"Caxambu do Sul|dev|real|0":0.0,"Caxambu do Sul|dev|real|1":0.0,"Lins|dev|real|0":1.0,"Lins|dev|real|1":1.0,"Matriz ADM|traj_sa|real|0":0.0,"Matriz ADM|traj_sa|real|1":0.0,"Tiros|traj_sa|real|0":0.0,"Tiros|traj_sa|real|1":0.0,"Arapuá|traj_sa|real|0":0.0,"Arapuá|traj_sa|real|1":0.0,"Monte Aprazível|traj_sa|real|0":0.0,"Monte Aprazível|traj_sa|real|1":0.0,"Centro de Distribuição|traj_sa|real|0":0.0,"Centro de Distribuição|traj_sa|real|1":0.0,"Caxambu do Sul|traj_sa|real|0":0.0,"Caxambu do Sul|traj_sa|real|1":0.0,"Lins|traj_sa|real|0":0.0,"Lins|traj_sa|real|1":0.0,"Matriz ADM|traj_ca|real|0":0.0,"Matriz ADM|traj_ca|real|1":0.0,"Tiros|traj_ca|real|0":0.0,"Tiros|traj_ca|real|1":0.0,"Arapuá|traj_ca|real|0":0.0,"Arapuá|traj_ca|real|1":0.0,"Monte Aprazível|traj_ca|real|0":1.0,"Monte Aprazível|traj_ca|real|1":0.0,"Centro de Distribuição|traj_ca|real|0":0.0,"Centro de Distribuição|traj_ca|real|1":0.0,"Caxambu do Sul|traj_ca|real|0":0.0,"Caxambu do Sul|traj_ca|real|1":0.0,"Lins|traj_ca|real|0":0.0,"Lins|traj_ca|real|1":0.0,"Matriz ADM|do_sa|real|0":0.0,"Matriz ADM|do_sa|real|1":0.0,"Tiros|do_sa|real|0":0.0,"Tiros|do_sa|real|1":0.0,"Arapuá|do_sa|real|0":0.0,"Arapuá|do_sa|real|1":0.0,"Monte Aprazível|do_sa|real|0":0.0,"Monte Aprazível|do_sa|real|1":0.0,"Centro de Distribuição|do_sa|real|0":0.0,"Centro de Distribuição|do_sa|real|1":0.0,"Caxambu do Sul|do_sa|real|0":0.0,"Caxambu do Sul|do_sa|real|1":0.0,"Lins|do_sa|real|0":0.0,"Lins|do_sa|real|1":0.0,"Matriz ADM|do_ca|real|0":0.0,"Matriz ADM|do_ca|real|1":0.0,"Tiros|do_ca|real|0":0.0,"Tiros|do_ca|real|1":0.0,"Arapuá|do_ca|real|0":0.0,"Arapuá|do_ca|real|1":0.0,"Monte Aprazível|do_ca|real|0":0.0,"Monte Aprazível|do_ca|real|1":0.0,"Centro de Distribuição|do_ca|real|0":0.0,"Centro de Distribuição|do_ca|real|1":0.0,"Caxambu do Sul|do_ca|real|0":0.0,"Caxambu do Sul|do_ca|real|1":0.0,"Lins|do_ca|real|0":0.0,"Lins|do_ca|real|1":0.0,"Matriz ADM|terc_sa|real|0":0.0,"Matriz ADM|terc_sa|real|1":0.0,"Tiros|terc_sa|real|0":0.0,"Tiros|terc_sa|real|1":0.0,"Arapuá|terc_sa|real|0":0.0,"Arapuá|terc_sa|real|1":0.0,"Monte Aprazível|terc_sa|real|0":0.0,"Monte Aprazível|terc_sa|real|1":0.0,"Centro de Distribuição|terc_sa|real|0":0.0,"Centro de Distribuição|terc_sa|real|1":0.0,"Caxambu do Sul|terc_sa|real|0":0.0,"Caxambu do Sul|terc_sa|real|1":0.0,"Lins|terc_sa|real|0":0.0,"Lins|terc_sa|real|1":0.0,"Matriz ADM|terc_ca|real|0":0.0,"Matriz ADM|terc_ca|real|1":0.0,"Matriz ADM|terc_ca|real|2":0.0,"Tiros|terc_ca|real|0":0.0,"Tiros|terc_ca|real|1":0.0,"Tiros|terc_ca|real|2":0.0,"Arapuá|terc_ca|real|0":0.0,"Arapuá|terc_ca|real|1":0.0,"Arapuá|terc_ca|real|2":0.0,"Monte Aprazível|terc_ca|real|0":0.0,"Monte Aprazível|terc_ca|real|1":0.0,"Monte Aprazível|terc_ca|real|2":0.0,"Centro de Distribuição|terc_ca|real|0":0.0,"Centro de Distribuição|terc_ca|real|1":0.0,"Centro de Distribuição|terc_ca|real|2":0.0,"Caxambu do Sul|terc_ca|real|0":0.0,"Caxambu do Sul|terc_ca|real|1":0.0,"Caxambu do Sul|terc_ca|real|2":0.0,"Lins|terc_ca|real|0":0.0,"Lins|terc_ca|real|1":0.0,"Lins|terc_ca|real|2":0.0};
+
+// ── Inicialização Firebase ──────────────────────────────────────────────
+async function initFirebase() {
+  // Aguardar o SDK do Firebase carregar (script type=module no head)
+  let waited = 0;
+  while (!window._fb && waited < 5000) {
+    await new Promise(r => setTimeout(r, 100));
+    waited += 100;
+  }
+
+  if (!window._fb) {
+    // SDK não carregou — modo offline
+    showConnectionBanner('offline');
+    DB = JSON.parse(localStorage.getItem('zat_data_2026') || '{}');
+    if (Object.keys(DB).length < 10) DB = { ...PRELOAD_DATA };
+    DB_READY = true;
+    return;
+  }
+
+  try {
+    const { db, auth, doc, onSnapshot, setDoc, onAuthState } = window._fb;
+
+    // Observar mudanças de auth
+    onAuthState(auth, user => {
+      isAdmin = !!user;
+      updateAdminUI();
+    });
+
+    // Listener em tempo real
+    const docRef = doc(db, 'zat2026', 'indicadores');
+    DB_LISTENER = onSnapshot(docRef, snap => {
+      if (snap.exists()) {
+        DB = snap.data();
+      } else {
+        DB = { ...PRELOAD_DATA };
+        setDoc(docRef, DB);
+      }
+      DB_READY = true;
+      renderAllDebounced();
+    }, err => {
+      console.error('Firestore error:', err);
+      DB = JSON.parse(localStorage.getItem('zat_data_2026') || JSON.stringify(PRELOAD_DATA));
+      DB_READY = true;
+      renderAllDebounced();
+    });
+
+    showConnectionBanner('online');
+  } catch(e) {
+    console.error('Firebase init failed:', e);
+    showConnectionBanner('offline');
+    DB = JSON.parse(localStorage.getItem('zat_data_2026') || JSON.stringify(PRELOAD_DATA));
+    DB_READY = true;
+  }
+}
+
+// ── Salvar dado no Firestore (ou localStorage no modo offline) ──────────
+async function persistData() {
+  if (!window._fb) {
+    localStorage.setItem('zat_data_2026', JSON.stringify(DB));
+    showToast('💾 Salvo localmente (modo offline)');
+    return;
+  }
+  try {
+    const { db, doc, setDoc } = window._fb;
+    await setDoc(doc(db, 'zat2026', 'indicadores'), DB);
+    showToast('✓ Salvo e sincronizado em tempo real!');
+  } catch(e) {
+    localStorage.setItem('zat_data_2026', JSON.stringify(DB));
+    showToast('⚠️ Salvo localmente (sem conexão)');
+  }
+}
+
+// ── Banner de conexão ────────────────────────────────────────────────────
+function showConnectionBanner(mode) {
+  const el = document.getElementById('connBanner');
+  if (!el) return;
+  if (mode === 'online') {
+    el.style.background = '#E8F5E9';
+    el.style.color = '#2E7D32';
+    el.textContent = '🟢 Conectado ao Firebase — dados em tempo real';
+  } else {
+    el.style.background = '#FFF3E0';
+    el.style.color = '#E65100';
+    el.innerHTML = '🟡 Modo offline — <a href="#" onclick="openSetupModal()" style="color:inherit;font-weight:600">configurar Firebase</a> para habilitar tempo real';
+  }
+  el.style.display = 'block';
+}
+
+// ── Autenticação admin ───────────────────────────────────────────────────
+let isAdmin = false;
+const ADMIN_PASSWORD_HASH = 'zat2026tirolez'; // Senha padrão — mudar no modal de config
+
+async function loginAdmin(password) {
+  if (!FIREBASE_CONFIGURED) {
+    // Modo offline: senha simples
+    if (password === ADMIN_PASSWORD_HASH) {
+      isAdmin = true;
+      updateAdminUI();
+      closeLoginModal();
+      showToast('✓ Modo admin ativado');
+    } else {
+      document.getElementById('loginError').textContent = 'Senha incorreta.';
+    }
+    return;
+  }
+  try {
+    await window._fb.signIn(window._fb.auth, 'admin@zat.tirolez.com.br', password);
+    closeLoginModal();
+    showToast('✓ Login realizado com sucesso');
+  } catch(e) {
+    console.error('Login error:', e);
+    document.getElementById('loginError').textContent = 'Senha incorreta ou usuário não encontrado.';
+  }
+}
+
+async function logoutAdmin() {
+  if (!FIREBASE_CONFIGURED) {
+    isAdmin = false;
+    updateAdminUI();
+    showToast('Logout realizado');
+    return;
+  }
+  if(window._fb) await window._fb.signOut(window._fb.auth);
+  showToast('Logout realizado');
+}
+
+function updateAdminUI() {
+  const adminBtn   = document.getElementById('adminBtn');
+  const logoutBtn  = document.getElementById('logoutBtn');
+  const entradaTab = document.querySelector('[onclick="showTab(\'entrada\')"]');
+  if (!adminBtn) return;
+  if (isAdmin) {
+    adminBtn.style.display  = 'none';
+    logoutBtn.style.display = 'inline-flex';
+    if (entradaTab) entradaTab.style.display = 'block';
+  } else {
+    adminBtn.style.display  = 'inline-flex';
+    logoutBtn.style.display = 'none';
+    if (entradaTab) entradaTab.style.display = 'none';
+  }
+}
+
+// ── Storage API (compatível com código anterior) ──────────────────────────
+function storageKey() { return 'zat_data_2026'; }
+function loadData()   { return DB; }
+function saveData(data) {
+  DB = data;
+  persistData();
+}
+function getVal(unit, indKey, mr, mes) {
+  return DB[`${unit}|${indKey}|${mr}|${mes}`] ?? null;
+}
+function setVal(unit, indKey, mr, mes, val) {
+  DB[`${unit}|${indKey}|${mr}|${mes}`] = val;
+  persistData();
+}
+
+
+function openLoginModal()  { document.getElementById('loginModal').classList.add('open'); document.getElementById('loginPassword').value=''; document.getElementById('loginError').textContent=''; setTimeout(()=>document.getElementById('loginPassword').focus(),100); }
+function closeLoginModal() { document.getElementById('loginModal').classList.remove('open'); }
+function openSetupModal()  { document.getElementById('setupModal').classList.add('open'); }
+function closeSetupModal() { document.getElementById('setupModal').classList.remove('open'); }
+
+function gerarHTMLConfigurado() {
+  const cfg = {
+    apiKey:            document.getElementById('cfg-apiKey').value.trim(),
+    authDomain:        document.getElementById('cfg-authDomain').value.trim(),
+    projectId:         document.getElementById('cfg-projectId').value.trim(),
+    appId:             document.getElementById('cfg-appId').value.trim(),
+  };
+  if(!cfg.apiKey||!cfg.projectId){alert('Preencha ao menos apiKey e projectId.');return;}
+  fetch(window.location.href)
+    .then(r=>r.text())
+    .then(html=>{
+      let updated = html
+        .replace('"AIzaSyAgMY6VQJldqJnDsIPpXjRFtDnYtxDso"', JSON.stringify(cfg.apiKey))
+        .replace('"zat-tirolez-2026.firebaseapp.com"', JSON.stringify(cfg.authDomain||cfg.projectId+'.firebaseapp.com'))
+        .replace('"zat-tirolez-2026"', JSON.stringify(cfg.projectId))
+        .replace('"zat-tirolez-2026.appspot.com"', JSON.stringify(cfg.projectId+'.appspot.com'))
+        .replace('"1:566566967596:web:a8a59c9e10b84cd9bcf489"', JSON.stringify(cfg.appId));
+      const blob = new Blob([updated],{type:'text/html'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'ZAT_Dashboard_Firebase.html';
+      a.click();
+      showToast('✓ HTML configurado baixado!');
+      closeSetupModal();
+    })
+    .catch(()=>alert('Não foi possível baixar. Edite o arquivo manualmente.'));
+}
+
+// ── Estado ──
+let renderTimer = null;
+function renderAllDebounced() {
+  if (renderTimer) clearTimeout(renderTimer);
+  renderTimer = setTimeout(() => { renderAll(); }, 150);
+}
+
+function openLoginModal()  { document.getElementById('loginModal').classList.add('open'); document.getElementById('loginPassword').value=''; document.getElementById('loginError').textContent=''; setTimeout(()=>document.getElementById('loginPassword').focus(),100); }
+function closeLoginModal() { document.getElementById('loginModal').classList.remove('open'); }
+function openSetupModal()  { document.getElementById('setupModal').classList.add('open'); }
+function closeSetupModal() { document.getElementById('setupModal').classList.remove('open'); }
+
+function gerarHTMLConfigurado() {
+  const cfg = {
+    apiKey:            document.getElementById('cfg-apiKey').value.trim(),
+    authDomain:        document.getElementById('cfg-authDomain').value.trim(),
+    projectId:         document.getElementById('cfg-projectId').value.trim(),
+    appId:             document.getElementById('cfg-appId').value.trim(),
+  };
+  if(!cfg.apiKey||!cfg.projectId){alert('Preencha ao menos apiKey e projectId.');return;}
+  fetch(window.location.href)
+    .then(r=>r.text())
+    .then(html=>{
+      let updated = html
+        .replace('"AIzaSyAgMY6VQJldqJnDsIPpXjRFtDnYtxDso"', JSON.stringify(cfg.apiKey))
+        .replace('"zat-tirolez-2026.firebaseapp.com"', JSON.stringify(cfg.authDomain||cfg.projectId+'.firebaseapp.com'))
+        .replace('"zat-tirolez-2026"', JSON.stringify(cfg.projectId))
+        .replace('"zat-tirolez-2026.appspot.com"', JSON.stringify(cfg.projectId+'.appspot.com'))
+        .replace('"1:566566967596:web:a8a59c9e10b84cd9bcf489"', JSON.stringify(cfg.appId));
+      const blob = new Blob([updated],{type:'text/html'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'ZAT_Dashboard_Firebase.html';
+      a.click();
+      showToast('✓ HTML configurado baixado!');
+      closeSetupModal();
+    })
+    .catch(()=>alert('Não foi possível baixar. Edite o arquivo manualmente.'));
+}
+
+// ── Estado ──
+let currentUnit = 'TODAS';
+let currentMes  = 0;
+let chartInstances = {};
+
+// ── Storage helpers ──
+function storageKey(){return'zat_data_2026'}
+function loadData(){
+  try{const d=localStorage.getItem(storageKey());return d?JSON.parse(d):{}}
+  catch{return{}}
+}
+function saveData(data){
+  localStorage.setItem(storageKey(),JSON.stringify(data));
+  showToast();
+}
+function getVal(unit,indKey,mr,mes){
+  const data=loadData();
+  return data[`${unit}|${indKey}|${mr}|${mes}`]??null;
+}
+function setVal(unit,indKey,mr,mes,val){
+  const data=loadData();
+  data[`${unit}|${indKey}|${mr}|${mes}`]=val;
+  saveData(data);
+}
+function clearUnit(unit){
+  if(!isAdmin){showToast('🔐 Acesso negado');return;}
+  Object.keys(DB).filter(k=>k.startsWith(unit+'|')).forEach(k=>delete DB[k]);
+  persistData();
+  renderAll();
+}
+
+// ── Helpers ──
+function fmt(v,unit){
+  if(v===null||v===undefined||v==='')return'—';
+  if(unit==='R$')return'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
+  if(unit==='%')return Number(v).toFixed(1)+'%';
+  return Number(v).toFixed(2);
+}
+function getStatus(real,meta,tipo){
+  if(real===null||meta===null)return'neu';
+  if(tipo==='controle')return'neu';
+  if(tipo==='menor'){
+    if(real<=meta*0.9)return'ok';
+    if(real<=meta)return'warn';
+    return'bad';
+  }
+  if(real>=meta*1.1)return'ok';
+  if(real>=meta)return'warn';
+  return'bad';
+}
+function statusLabel(s){
+  return{ok:'✓ Meta',warn:'⚠ Atenção',bad:'✕ Acima',neu:'—'}[s];
+}
+function getUnitData(unit,indKey,mes){
+  return{real:getVal(unit,indKey,'real',mes),meta:getVal(unit,indKey,'meta',mes)};
+}
+function getTotalReal(indKey,mes){
+  // Soma ou média dependendo do indicador
+  const vals=UNITS.map(u=>getVal(u,indKey,'real',mes)).filter(v=>v!==null&&v!=='');
+  if(!vals.length)return null;
+  const ind=INDICATORS.find(i=>i.key===indKey);
+  if(['tfc','tg','abs','turn','fap'].includes(indKey))return vals.reduce((a,b)=>a+Number(b),0)/vals.length;
+  return vals.reduce((a,b)=>a+Number(b),0);
+}
+
+function destroyChart(id){
+  if(chartInstances[id]){chartInstances[id].destroy();delete chartInstances[id];}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NAVEGAÇÃO
+// ═══════════════════════════════════════════════════════════════
+function showTab(tab){
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('sec-'+tab).classList.add('active');
+  currentMes=parseInt(document.getElementById('mesSelect').value);
+  if(tab==='dashboard')renderDashboard();
+  if(tab==='painel')renderPainel();
+  if(tab==='comparativo')renderComparativo();
+  if(tab==='tabela')renderTabela();
+  if(tab==='entrada')renderEntrada();
+}
+function renderAll(){
+  currentMes=parseInt(document.getElementById('mesSelect').value);
+  const active=document.querySelector('.section.active');
+  if(!active)return;
+  const id=active.id.replace('sec-','');
+  if(id==='dashboard')renderDashboard();
+  if(id==='painel')renderPainel();
+  if(id==='comparativo')renderComparativo();
+  if(id==='tabela')renderTabela();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODAL UNIDADE
+// ═══════════════════════════════════════════════════════════════
+function openUnitModal(){
+  const list=document.getElementById('unitList');
+  list.innerHTML='';
+  const all=['TODAS',...UNITS];
+  all.forEach(u=>{
+    const btn=document.createElement('button');
+    btn.className='unit-btn'+(currentUnit===u?' active':'');
+    btn.textContent=u==='TODAS'?'🏭  Todas as Unidades':u;
+    btn.onclick=()=>{currentUnit=u;document.getElementById('unitName').textContent=u==='TODAS'?'Todas as Unidades':u;closeUnitModal();renderAll();};
+    list.appendChild(btn);
+  });
+  document.getElementById('unitModal').classList.add('open');
+}
+function closeUnitModal(){document.getElementById('unitModal').classList.remove('open');}
+
+// ═══════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════════
+function renderDashboard(){
+  const el=document.getElementById('sec-dashboard');
+  const mes=currentMes;
+  const mesName=MONTHS[mes];
+  const targetUnit=currentUnit==='TODAS'?null:currentUnit;
+
+  // KPIs principais
+  const highlights=INDICATORS.filter(i=>i.highlight);
+  let kpiHtml='<div class="kpi-grid">';
+  highlights.forEach(ind=>{
+    const {real,meta}=targetUnit?getUnitData(targetUnit,ind.key,mes):{real:getTotalReal(ind.key,mes),meta:getVal(UNITS[0],ind.key,'meta',mes)};
+    const st=getStatus(real,meta,ind.tipo);
+    const stClass={ok:'ok',warn:'warn',bad:'bad',neu:'neutral'}[st];
+    kpiHtml+=`<div class="kpi-card ${stClass}">
+      <span class="kpi-status status-${st}">${statusLabel(st)}</span>
+      <div class="kpi-label">${ind.name}</div>
+      <div class="kpi-value">${real!==null?fmt(real,ind.unit):'—'}</div>
+      <div class="kpi-sub">${ind.unit}</div>
+      <div class="kpi-meta">Meta: ${meta!==null?fmt(meta,ind.unit):'não definida'}</div>
+    </div>`;
+  });
+  kpiHtml+='</div>';
+
+  // Gráfico 1 — TFC por unidade
+  let chartHtml=`<div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Taxa de Frequência Combinada por Unidade</div>
+      <div class="chart-sub">${mesName} 2026 — Real vs Meta</div>
+      <div class="legend-row">
+        <span class="leg-item"><span class="leg-dot" style="background:#185FA5"></span>Real</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#F5C518"></span>Meta</span>
+      </div>
+      <div class="chart-wrap"><canvas id="chartTFC" role="img" aria-label="TFC por unidade"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Absenteísmo & Turnover</div>
+      <div class="chart-sub">${mesName} 2026 — por Unidade</div>
+      <div class="legend-row">
+        <span class="leg-item"><span class="leg-dot" style="background:#E65100"></span>Absenteísmo</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#2E7D32"></span>Turnover</span>
+      </div>
+      <div class="chart-wrap"><canvas id="chartAbsTurn" role="img" aria-label="Absenteísmo e Turnover"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Acidentes Típicos — Acumulado 2026</div>
+      <div class="chart-sub">Com e sem afastamento por unidade</div>
+      <div class="legend-row">
+        <span class="leg-item"><span class="leg-dot" style="background:#C62828"></span>Com Afastamento</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#E57373"></span>Sem Afastamento</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#FFCDD2"></span>Incidentes</span>
+      </div>
+      <div class="chart-wrap"><canvas id="chartAcid" role="img" aria-label="Acidentes acumulados"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">FAP por Unidade</div>
+      <div class="chart-sub">Meta ≤ 1,0 — ${mesName} 2026</div>
+      <div class="legend-row">
+        <span class="leg-item"><span class="leg-dot" style="background:#1565C0"></span>FAP Real</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#F5C518"></span>Meta</span>
+      </div>
+      <div class="chart-wrap"><canvas id="chartFAP" role="img" aria-label="FAP por unidade"></canvas></div>
+    </div>
+    <div class="chart-card full">
+      <div class="chart-title">Evolução da TFC — ${targetUnit||'Total'} ao longo do ano</div>
+      <div class="chart-sub">Todos os meses de 2026</div>
+      <div class="legend-row">
+        <span class="leg-item"><span class="leg-dot" style="background:#185FA5"></span>Real</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#F5C518"></span>Meta</span>
+      </div>
+      <div class="chart-wrap tall"><canvas id="chartEvolTFC" role="img" aria-label="Evolução TFC anual"></canvas></div>
+    </div>
+  </div>`;
+
+  el.innerHTML=`
+    <div class="section-hdr">
+      <div>
+        <div class="section-hdr-title">Dashboard — ${targetUnit||'Visão Geral'} | ${mesName} 2026</div>
+        <div class="section-hdr-sub">Principais indicadores de segurança do trabalho</div>
+      </div>
+    </div>
+    ${kpiHtml}${chartHtml}`;
+
+  setTimeout(()=>{
+    // Dados
+    const tfc_real=UNITS.map(u=>getVal(u,'tfc','real',mes)||0);
+    const tfc_meta=UNITS.map(u=>getVal(u,'tfc','meta',mes)||2.75);
+    const abs_real=UNITS.map(u=>getVal(u,'abs','real',mes)||0);
+    const turn_real=UNITS.map(u=>getVal(u,'turn','real',mes)||0);
+    const aca_acum=UNITS.map(u=>MONTHS.reduce((s,_,m)=>s+(Number(getVal(u,'aca','real',m))||0),0));
+    const asa_acum=UNITS.map(u=>MONTHS.reduce((s,_,m)=>s+(Number(getVal(u,'asa','real',m))||0),0));
+    const inc_acum=UNITS.map(u=>MONTHS.reduce((s,_,m)=>s+(Number(getVal(u,'inc','real',m))||0),0));
+    const fap_real=UNITS.map(u=>getVal(u,'fap','real',mes)||0);
+    const fap_meta=UNITS.map(u=>getVal(u,'fap','meta',mes)||1.0);
+
+    const shortUnits=UNITS.map(u=>u.length>10?u.substring(0,10)+'…':u);
+
+    const baseOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}};
+
+    destroyChart('chartTFC');
+    chartInstances.chartTFC=new Chart(document.getElementById('chartTFC'),{
+      type:'bar',data:{labels:shortUnits,datasets:[
+        {label:'Real',data:tfc_real,backgroundColor:'rgba(24,95,165,0.8)',borderColor:'#185FA5',borderWidth:1},
+        {label:'Meta',data:tfc_meta,type:'line',borderColor:'#F5C518',backgroundColor:'transparent',borderWidth:2,pointRadius:3,tension:.3}
+      ]},
+      options:{...baseOpts,scales:{x:{ticks:{font:{size:10},maxRotation:40}},y:{ticks:{font:{size:10}},grid:{color:'rgba(0,0,0,.04)'},beginAtZero:true}}}
+    });
+
+    destroyChart('chartAbsTurn');
+    chartInstances.chartAbsTurn=new Chart(document.getElementById('chartAbsTurn'),{
+      type:'bar',data:{labels:shortUnits,datasets:[
+        {label:'Absenteísmo',data:abs_real,backgroundColor:'rgba(230,81,0,.75)'},
+        {label:'Turnover',data:turn_real,backgroundColor:'rgba(46,125,50,.75)'}
+      ]},
+      options:{...baseOpts,scales:{x:{ticks:{font:{size:10},maxRotation:40}},y:{ticks:{font:{size:10}},grid:{color:'rgba(0,0,0,.04)'},beginAtZero:true}}}
+    });
+
+    destroyChart('chartAcid');
+    chartInstances.chartAcid=new Chart(document.getElementById('chartAcid'),{
+      type:'bar',data:{labels:shortUnits,datasets:[
+        {label:'Com Afastamento',data:aca_acum,backgroundColor:'rgba(198,40,40,.8)'},
+        {label:'Sem Afastamento',data:asa_acum,backgroundColor:'rgba(229,115,115,.8)'},
+        {label:'Incidentes',data:inc_acum,backgroundColor:'rgba(255,205,210,.9)'}
+      ]},
+      options:{...baseOpts,scales:{x:{stacked:true,ticks:{font:{size:10},maxRotation:40}},y:{stacked:true,ticks:{font:{size:10}},beginAtZero:true}}}
+    });
+
+    destroyChart('chartFAP');
+    chartInstances.chartFAP=new Chart(document.getElementById('chartFAP'),{
+      type:'bar',data:{labels:shortUnits,datasets:[
+        {label:'FAP',data:fap_real,backgroundColor:fap_real.map(v=>v>1?'rgba(198,40,40,.8)':'rgba(21,101,192,.8)')},
+        {label:'Meta',data:fap_meta,type:'line',borderColor:'#F5C518',backgroundColor:'transparent',borderWidth:2,pointRadius:3,tension:.3}
+      ]},
+      options:{...baseOpts,scales:{x:{ticks:{font:{size:10},maxRotation:40}},y:{ticks:{font:{size:10}},grid:{color:'rgba(0,0,0,.04)'},beginAtZero:true}}}
+    });
+
+    const tfc_evol_r=MONTHS.map((_,m)=>{
+      const u=targetUnit;
+      if(u)return getVal(u,'tfc','real',m)||null;
+      const v=getTotalReal('tfc',m);return v;
+    });
+    const tfc_evol_m=MONTHS.map((_,m)=>targetUnit?getVal(targetUnit,'tfc','meta',m)||null:2.75);
+
+    destroyChart('chartEvolTFC');
+    chartInstances.chartEvolTFC=new Chart(document.getElementById('chartEvolTFC'),{
+      type:'line',data:{labels:MONTHS,datasets:[
+        {label:'Real',data:tfc_evol_r,borderColor:'#185FA5',backgroundColor:'rgba(24,95,165,.08)',fill:true,tension:.4,borderWidth:2.5,pointRadius:4,pointBackgroundColor:'#185FA5'},
+        {label:'Meta',data:tfc_evol_m,borderColor:'#F5C518',backgroundColor:'transparent',borderDash:[6,4],borderWidth:2,pointRadius:0,tension:.3}
+      ]},
+      options:{...baseOpts,scales:{x:{ticks:{font:{size:11}}},y:{ticks:{font:{size:11}},grid:{color:'rgba(0,0,0,.04)'},beginAtZero:true}}}
+    });
+  },50);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PAINEL POR UNIDADE
+// ═══════════════════════════════════════════════════════════════
+function renderPainel(){
+  const el=document.getElementById('sec-painel');
+  const mes=currentMes;
+  const isTodas=currentUnit==='TODAS';
+  const unit=isTodas?null:currentUnit;
+  const tituloUnidade=isTodas?'Todas as Unidades':unit;
+
+  let rows='';
+  INDICATORS.forEach(ind=>{
+    let real,meta,acum,media;
+    if(isTodas){
+      // Agrega todas as unidades: soma para contagens, média para índices/percentuais
+      const isMedia=['tfc','tg','abs','turn','fap'].includes(ind.key);
+      const reaisUnidades=UNITS.map(u=>getVal(u,ind.key,'real',mes)).filter(v=>v!==null&&v!=='');
+      real=reaisUnidades.length?(isMedia?reaisUnidades.reduce((a,b)=>a+Number(b),0)/reaisUnidades.length:reaisUnidades.reduce((a,b)=>a+Number(b),0)):null;
+      const metasUnidades=UNITS.map(u=>getVal(u,ind.key,'meta',mes)).filter(v=>v!==null&&v!=='');
+      meta=metasUnidades.length?(isMedia?metasUnidades.reduce((a,b)=>a+Number(b),0)/metasUnidades.length:metasUnidades.reduce((a,b)=>a+Number(b),0)):null;
+      const acumVals=UNITS.flatMap(u=>MONTHS.map((_,m)=>Number(getVal(u,ind.key,'real',m))||0));
+      acum=acumVals.reduce((s,v)=>s+v,0);
+      media=acum/12;
+    } else {
+      ({real,meta}=getUnitData(unit,ind.key,mes));
+      acum=MONTHS.reduce((s,_,m)=>s+(Number(getVal(unit,ind.key,'real',m))||0),0);
+      const vals=MONTHS.map((_,m)=>getVal(unit,ind.key,'real',m)).filter(v=>v!==null&&v!=='');
+      media=vals.length?vals.reduce((a,b)=>a+Number(b),0)/vals.length:null;
+    }
+    const st=getStatus(real,meta,ind.tipo);
+    rows+=`<tr>
+      <td style="font-weight:500">${ind.name}</td>
+      <td style="text-align:center;color:var(--gray400)">${ind.unit}</td>
+      <td style="text-align:center;color:var(--green);font-weight:600">${meta!==null?fmt(meta,ind.unit):'—'}</td>
+      <td style="text-align:center;font-weight:600">${real!==null?fmt(real,ind.unit):'—'}</td>
+      <td style="text-align:center"><span class="badge badge-${st}">${statusLabel(st)}</span></td>
+      <td style="text-align:center;color:var(--blue)">${fmt(acum,ind.unit)}</td>
+      <td style="text-align:center;color:var(--blue)">${media!==null?fmt(media,ind.unit):'—'}</td>
+    </tr>`;
+  });
+
+  el.innerHTML=`
+    <div class="section-hdr">
+      <div>
+        <div class="section-hdr-title">Painel — ${tituloUnidade} | ${MONTHS[mes]} 2026</div>
+        <div class="section-hdr-sub">Clique na unidade no topo para trocar</div>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table class="ztbl">
+        <thead><tr>
+          <th style="width:30%">Indicador</th><th style="width:7%;text-align:center">Und.</th>
+          <th style="width:11%;text-align:center">Meta</th><th style="width:11%;text-align:center">Real (${MONTHS[mes]})</th>
+          <th style="width:11%;text-align:center">Status</th><th style="width:11%;text-align:center">Acum. 2026</th>
+          <th style="width:10%;text-align:center">Média 2026</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COMPARATIVO
+// ═══════════════════════════════════════════════════════════════
+function renderComparativo(){
+  const el=document.getElementById('sec-comparativo');
+  const mes=currentMes;
+
+  let blocks='<div class="comp-grid">';
+  INDICATORS.forEach(ind=>{
+    const vals=UNITS.map(u=>({unit:u,...getUnitData(u,ind.key,mes)}));
+    const anyData=vals.some(v=>v.real!==null);
+
+    let unitCells='';
+    vals.forEach(({unit,real,meta})=>{
+      const st=getStatus(real,meta,ind.tipo);
+      const colors={ok:'var(--green-l)',warn:'var(--amber-l)',bad:'var(--red-l)',neu:'transparent'};
+      const short=unit.length>12?unit.substring(0,12)+'…':unit;
+      unitCells+=`<div class="comp-unit" style="background:${colors[st]}">
+        <div class="comp-unit-name">${short}</div>
+        <div class="comp-unit-val" style="color:${st==='bad'?'var(--red)':st==='ok'?'var(--green)':'var(--navy)'}">${real!==null?fmt(real,ind.unit):'—'}</div>
+        <div class="comp-unit-meta">Meta: ${meta!==null?fmt(meta,ind.unit):'—'}</div>
+      </div>`;
+    });
+
+    blocks+=`<div class="comp-row">
+      <div class="comp-ind-hdr">
+        <span>${ind.name}</span>
+        <span style="font-size:11px;opacity:.7">${ind.unit} | ${MONTHS[mes]} 2026</span>
+      </div>
+      <div class="comp-units">${unitCells}</div>
+    </div>`;
+  });
+  blocks+='</div>';
+
+  el.innerHTML=`
+    <div class="section-hdr">
+      <div>
+        <div class="section-hdr-title">Comparativo entre Unidades | ${MONTHS[mes]} 2026</div>
+        <div class="section-hdr-sub">Verde = dentro da meta · Amarelo = atenção · Vermelho = acima da meta</div>
+      </div>
+    </div>${blocks}`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TABELA DE DADOS
+// ═══════════════════════════════════════════════════════════════
+function renderTabela(){
+  const el=document.getElementById('sec-tabela');
+
+  let rows='';
+  INDICATORS.forEach(ind=>{
+    UNITS.forEach(unit=>{
+      ['Meta','Real'].forEach(mr=>{
+        const vals=MONTHS.map((_,m)=>getVal(unit,ind.key,mr.toLowerCase(),m));
+        const acum=mr==='Real'?vals.reduce((s,v)=>s+(Number(v)||0),0):null;
+        const filled=vals.filter(v=>v!==null&&v!=='');
+        const media=mr==='Real'&&filled.length?filled.reduce((a,b)=>a+Number(b),0)/filled.length:null;
+        rows+=`<tr>
+          <td style="font-size:11px">${ind.name}</td>
+          <td>${unit}</td>
+          <td><span class="badge ${mr==='Meta'?'badge-ok':'badge-neu'}">${mr}</span></td>
+          ${vals.map(v=>`<td style="text-align:center;font-size:11px">${v!==null?Number(v).toLocaleString('pt-BR',{maximumFractionDigits:2}):'—'}</td>`).join('')}
+          <td style="text-align:center;font-weight:600;color:var(--blue)">${acum!==null?Number(acum).toLocaleString('pt-BR',{maximumFractionDigits:2}):'—'}</td>
+          <td style="text-align:center;color:var(--blue)">${media!==null?Number(media).toLocaleString('pt-BR',{maximumFractionDigits:2}):'—'}</td>
+        </tr>`;
+      });
+    });
+  });
+
+  el.innerHTML=`
+    <div class="section-hdr">
+      <div>
+        <div class="section-hdr-title">Tabela de Dados Completa — 2026</div>
+        <div class="section-hdr-sub">Todos os indicadores, unidades e meses</div>
+      </div>
+    </div>
+    <div class="tbl-wrap" style="overflow-x:auto">
+      <table class="ztbl">
+        <thead><tr>
+          <th style="width:22%">Indicador</th><th>Unidade</th><th>Tipo</th>
+          ${MONTHS.map(m=>`<th style="text-align:center">${m}</th>`).join('')}
+          <th style="text-align:center">Acum.</th><th style="text-align:center">Média</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ENTRADA DE DADOS
+// ═══════════════════════════════════════════════════════════════
+function renderEntrada(){
+  const el=document.getElementById('sec-entrada');
+  const mes=currentMes;
+
+  let indOpts=INDICATORS.map(i=>`<option value="${i.key}">${i.name}</option>`).join('');
+  let unitOpts=UNITS.map(u=>`<option value="${u}">${u}</option>`).join('');
+  let mesOpts=MONTHS.map((m,i)=>`<option value="${i}"${i===mes?' selected':''}>${m}</option>`).join('');
+
+  el.innerHTML=`
+    <div class="section-hdr">
+      <div>
+        <div class="section-hdr-title">Entrada de Dados</div>
+        <div class="section-hdr-sub">Registre Meta e Real mensalmente por indicador e unidade</div>
+      </div>
+    </div>
+    <div class="entrada-form">
+      <div class="form-grid">
+        <div class="form-field">
+          <label class="form-label">Unidade</label>
+          <select class="form-input" id="inp-unit">${unitOpts}</select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Indicador</label>
+          <select class="form-input" id="inp-ind">${indOpts}</select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Mês</label>
+          <select class="form-input" id="inp-mes">${mesOpts}</select>
+        </div>
+        <div class="form-field"></div>
+        <div class="form-field">
+          <label class="form-label">Meta</label>
+          <input type="number" class="form-input" id="inp-meta" placeholder="0.00" step="0.01">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Real</label>
+          <input type="number" class="form-input" id="inp-real" placeholder="0.00" step="0.01">
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--gray400);margin-bottom:12px">
+        💡 Modo admin ativo. Os dados são salvos no Firebase e sincronizados em tempo real com todos os gerentes. Use "Exportar JSON" para backup local.
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="salvarDado()">Salvar Registro</button>
+        <button class="btn btn-outline" onclick="preencherFormulario()">Carregar Valores Atuais</button>
+        <button class="btn btn-outline" onclick="exportarDados()">📤 Exportar JSON</button>
+        <button class="btn btn-outline" onclick="document.getElementById('import-file').click()">📥 Importar JSON</button>
+        <input type="file" id="import-file" accept=".json" style="display:none" onchange="importarDados(event)">
+      </div>
+    </div>
+
+    <div class="section-hdr" style="margin-top:8px">
+      <div>
+        <div class="section-hdr-title" style="font-size:15px">Lançamento em Massa — ${MONTHS[mes]}</div>
+        <div class="section-hdr-sub">Preencha múltiplos indicadores para uma unidade de uma vez</div>
+      </div>
+    </div>
+    <div class="entrada-form">
+      <div style="margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <div class="form-field" style="min-width:200px">
+          <label class="form-label">Unidade para lançamento em massa</label>
+          <select class="form-input" id="mass-unit">${unitOpts}</select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Mês</label>
+          <select class="form-input" id="mass-mes">${mesOpts}</select>
+        </div>
+        <div style="margin-top:18px">
+          <button class="btn btn-outline" onclick="renderMassTable()">Carregar Tabela</button>
+        </div>
+      </div>
+      <div id="mass-table"></div>
+      <div id="mass-actions" style="display:none;margin-top:12px">
+        <button class="btn btn-primary" onclick="salvarMassa()">💾 Salvar Todos os Dados</button>
+      </div>
+    </div>`;
+}
+
+function preencherFormulario(){
+  const unit=document.getElementById('inp-unit').value;
+  const ind=document.getElementById('inp-ind').value;
+  const mes=parseInt(document.getElementById('inp-mes').value);
+  const meta=getVal(unit,ind,'meta',mes);
+  const real=getVal(unit,ind,'real',mes);
+  if(meta!==null)document.getElementById('inp-meta').value=meta;
+  if(real!==null)document.getElementById('inp-real').value=real;
+}
+
+function salvarDado(){
+  if(!isAdmin){showToast('🔐 Acesso negado — faça login como admin');return;}
+  const unit=document.getElementById('inp-unit').value;
+  const ind=document.getElementById('inp-ind').value;
+  const mes=parseInt(document.getElementById('inp-mes').value);
+  const meta=document.getElementById('inp-meta').value;
+  const real=document.getElementById('inp-real').value;
+  if(meta!=='')DB[`${unit}|${ind}|meta|${mes}`]=parseFloat(meta);
+  if(real!=='')DB[`${unit}|${ind}|real|${mes}`]=parseFloat(real);
+  persistData();
+  renderAll();
+}
+
+function renderMassTable(){
+  const unit=document.getElementById('mass-unit').value;
+  const mes=parseInt(document.getElementById('mass-mes').value);
+  let html=`<table class="ztbl"><thead><tr>
+    <th>Indicador</th><th style="text-align:center">Und.</th>
+    <th style="text-align:center;width:140px">Meta</th>
+    <th style="text-align:center;width:140px">Real</th>
+  </tr></thead><tbody>`;
+  INDICATORS.forEach(ind=>{
+    const meta=getVal(unit,ind.key,'meta',mes)??'';
+    const real=getVal(unit,ind.key,'real',mes)??'';
+    html+=`<tr>
+      <td style="font-size:12px">${ind.name}</td>
+      <td style="text-align:center;font-size:11px;color:var(--gray400)">${ind.unit}</td>
+      <td><input type="number" step="0.01" class="form-input" style="width:100%;padding:5px 8px"
+        id="mass-meta-${ind.key}" value="${meta}" placeholder="meta"></td>
+      <td><input type="number" step="0.01" class="form-input" style="width:100%;padding:5px 8px;background:var(--blue-l)"
+        id="mass-real-${ind.key}" value="${real}" placeholder="real"></td>
+    </tr>`;
+  });
+  html+='</tbody></table>';
+  document.getElementById('mass-table').innerHTML=html;
+  document.getElementById('mass-actions').style.display='block';
+}
+
+function salvarMassa(){
+  if(!isAdmin){showToast('🔐 Acesso negado — faça login como admin');return;}
+  const unit=document.getElementById('mass-unit').value;
+  const mes=parseInt(document.getElementById('mass-mes').value);
+  INDICATORS.forEach(ind=>{
+    const meta=document.getElementById(`mass-meta-${ind.key}`)?.value;
+    const real=document.getElementById(`mass-real-${ind.key}`)?.value;
+    if(meta!==undefined&&meta!=='')DB[`${unit}|${ind.key}|meta|${mes}`]=parseFloat(meta);
+    if(real!==undefined&&real!=='')DB[`${unit}|${ind.key}|real|${mes}`]=parseFloat(real);
+  });
+  persistData();
+  renderAll();
+  showToast('✓ Dados salvos e sincronizados!');
+}
+
+function exportarDados(){
+  const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='ZAT_dados_2026.json';
+  a.click();
+}
+function importarDados(e){
+  if(!isAdmin){showToast('🔐 Acesso negado');return;}
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async ev=>{
+    try{
+      const d=JSON.parse(ev.target.result);
+      DB={...d};
+      await persistData();
+      renderAll();
+      showToast('✓ Dados importados e sincronizados!');
+    }catch{alert('Arquivo JSON inválido.');}
+  };
+  reader.readAsText(file);
+}
+
+function showToast(msg){
+  const t=document.getElementById('saveToast');
+  t.textContent = msg || '✓ Dados salvos com sucesso!';
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ── INIT ──
+document.getElementById('mesSelect').value=2;
+currentMes=2;
+updateAdminUI();
+initFirebase().then(()=>{
+  if(DB_READY) renderDashboard();
+});
+</script>
+</body>
+</html>
