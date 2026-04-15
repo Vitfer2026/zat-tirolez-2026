@@ -310,7 +310,7 @@ select.form-input{cursor:pointer}
       2. Clique em <strong>Adicionar projeto</strong> → nome: <code>zat-tirolez-2026</code><br>
       3. No menu lateral: <strong>Build → Firestore Database</strong> → Criar banco → Modo produção<br>
       4. No menu lateral: <strong>Authentication</strong> → Sign-in method → Email/senha → Ativar<br>
-      5. Authentication → Users → Adicionar usuário: <code>admin@zat.tirolez.com.br</code> + sua senha<br>
+      5. Authentication → Users → Adicionar usuário: <code>joao.ferreira@tirolez.com.br</code> + sua senha<br>
       6. Configurações do projeto → Seus apps → Adicionar app Web → Copie as credenciais abaixo
     </div>
     <div style="font-size:12px;color:var(--gray600);margin-bottom:12px">Cole as credenciais do Firebase e salve o arquivo HTML — o sistema conectará automaticamente.</div>
@@ -557,7 +557,7 @@ async function loginAdmin(password) {
     return;
   }
   try {
-    await window._fb.signIn(window._fb.auth, 'admin@zat.tirolez.com.br', password);
+    await window._fb.signIn(window._fb.auth, 'joao.ferreira@tirolez.com.br', password);
     closeLoginModal();
     showToast('✓ Login realizado com sucesso');
   } catch(e) {
