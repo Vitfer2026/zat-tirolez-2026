@@ -285,17 +285,20 @@ select.form-input{cursor:pointer}
       Os gerentes visualizam sem precisar de login.
     </p>
     <div class="form-field" style="margin-bottom:12px">
+      <label class="form-label">E-mail</label>
+      <input type="email" class="form-input" id="loginEmail" placeholder="seu@email.com.br"
+        value="joao.ferreira@tirolez.com.br"
+        onkeydown="if(event.key==='Enter')document.getElementById('loginPassword').focus()">
+    </div>
+    <div class="form-field" style="margin-bottom:12px">
       <label class="form-label">Senha</label>
       <input type="password" class="form-input" id="loginPassword" placeholder="••••••••"
-        onkeydown="if(event.key==='Enter')loginAdmin(this.value)">
+        onkeydown="if(event.key==='Enter')loginAdmin(document.getElementById('loginEmail').value, this.value)">
     </div>
     <div id="loginError" style="color:var(--red);font-size:12px;margin-bottom:12px;min-height:16px"></div>
     <div style="display:flex;gap:10px">
-      <button class="btn btn-primary" onclick="loginAdmin(document.getElementById('loginPassword').value)">Entrar</button>
+      <button class="btn btn-primary" onclick="loginAdmin(document.getElementById('loginEmail').value, document.getElementById('loginPassword').value)">Entrar</button>
       <button class="btn btn-outline" onclick="closeLoginModal()">Cancelar</button>
-    </div>
-    <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--gray100);font-size:11px;color:var(--gray400)">
-      Senha padrão: <code>zat2026tirolez</code> — altere após o primeiro acesso
     </div>
   </div>
 </div>
@@ -545,24 +548,22 @@ function showConnectionBanner(mode) {
 let isAdmin = false;
 const ADMIN_PASSWORD_HASH = 'zat2026tirolez'; // Senha padrão — mudar no modal de config
 
-async function loginAdmin(password) {
+async function loginAdmin(email, password) {
+  if (!email || !password) {
+    document.getElementById('loginError').textContent = 'Preencha e-mail e senha.';
+    return;
+  }
   if (!window._fb) {
-    // Fallback offline: aceita senha local
-    if (password === ADMIN_PASSWORD_HASH) {
-      isAdmin = true; updateAdminUI(); closeLoginModal();
-      showToast('✓ Modo admin ativado (offline)');
-    } else {
-      document.getElementById('loginError').textContent = 'Senha incorreta.';
-    }
+    document.getElementById('loginError').textContent = 'Firebase não conectado. Verifique sua conexão.';
     return;
   }
   try {
-    await window._fb.signIn(window._fb.auth, 'joao.ferreira@tirolez.com.br', password);
+    await window._fb.signIn(window._fb.auth, email.trim(), password);
     closeLoginModal();
     showToast('✓ Login realizado com sucesso');
   } catch(e) {
     console.error('Login:', e);
-    document.getElementById('loginError').textContent = 'Senha incorreta.';
+    document.getElementById('loginError').textContent = 'E-mail ou senha incorretos.';
   }
 }
 
