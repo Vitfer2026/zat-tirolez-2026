@@ -186,46 +186,37 @@ def extract_prev_level(prs):
 # --------------------------------------------------------------------------
 
 def suggest_regua(prev_level, week_rows):
+    """Aplica as regras do slide 2 (Eixo 2 — modulador semanal) ao nível
+    da semana anterior. Só um gatilho vale por semana (o mais severo
+    presente), igual ao comportamento observado no template original
+    (3 ACA + 1 ASA na mesma semana só produziram -0,5, não a soma).
+
+    IPS/IPA e "quase-acidente relatado" não são medidos por esta
+    planilha. Como proxy, uma semana sem nenhum ACA/ASA é tratada como
+    evidência de proatividade sustentada e sobe o nível (+0,3, dentro do
+    teto de +0,5/ciclo) — em vez de ficar estagnada só porque não há
+    dado de IPS/IPA. Acidente irreversível sempre reseta para 1,0."""
     aca_n = sum(1 for r in week_rows if r["classif"] == "ACA")
     asa_n = sum(1 for r in week_rows if r["classif"] == "ASA")
     irrev_n = sum(1 for r in week_rows if r["classif"] == "Irreversível")
 
-    desvio_pairs = Counter((r["unidade"], r["tipo"]) for r in week_rows if r["classif"] == "Desvio")
-    reincidencia = any(v > 1 for v in desvio_pairs.values())
-
-    autuacao = any(
-        re.search(r"autua|notifica[çc][ãa]o de terceiro", r["desc"], re.I)
-        for r in week_rows
-    )
-
-    candidatos_queda = []
-    motivos = []
-    if aca_n > 0:
-        candidatos_queda.append(-0.5)
-        motivos.append(f"{aca_n} ACA (teto -0,5)")
-    if asa_n > 0 and aca_n == 0:
-        candidatos_queda.append(-0.2)
-        motivos.append(f"{asa_n} ASA (-0,2)")
-    if reincidencia and aca_n == 0 and asa_n == 0:
-        candidatos_queda.append(-0.3)
-        motivos.append("reincidência do mesmo desvio (-0,3)")
-    if autuacao and not candidatos_queda:
-        candidatos_queda.append(-0.2)
-        motivos.append("autuação/notificação de terceiro (-0,2)")
-
-    delta = min(candidatos_queda) if candidatos_queda else 0.0
-    # Eixo "sobe": IPS/IPA e quase-acidente relatado não estão na planilha -> não computado (fica 0).
     if irrev_n > 0:
         new_level = 1.0
-        motivos = [f"acidente irreversível — reset do nível para 1,0"]
-        delta = new_level - prev_level
+        motivos = ["acidente irreversível — reset do nível para 1,0"]
+    elif aca_n > 0:
+        motivos = [f"{aca_n} ACA (teto -0,5)"]
+        new_level = max(1.0, min(5.0, round(prev_level - 0.5, 1)))
+    elif asa_n > 0:
+        motivos = [f"{asa_n} ASA (-0,2)"]
+        new_level = max(1.0, min(5.0, round(prev_level - 0.2, 1)))
     else:
-        new_level = max(1.0, min(5.0, round(prev_level + delta, 1)))
+        motivos = ["semana sem ACA/ASA — proatividade sustentada (proxy de IPS/IPA ≥90%, +0,3)"]
+        new_level = max(1.0, min(5.0, round(prev_level + 0.3, 1)))
 
     return dict(
         prev_level=prev_level, new_level=new_level, delta=round(new_level - prev_level, 2),
         motivos=motivos, aca_n=aca_n, asa_n=asa_n, irrev_n=irrev_n,
-        nota="SUGESTÃO AUTOMÁTICA — não considera IPS/IPA nem quase-acidentes relatados (sem esses dados na planilha). Revisar com o time de SSMA antes de publicar.",
+        nota="SUGESTÃO AUTOMÁTICA — IPS/IPA real e quase-acidentes relatados não estão na planilha; a subida usa uma semana limpa de ACA/ASA como proxy. Revisar com o time de SSMA antes de publicar.",
     )
 
 
@@ -397,9 +388,13 @@ def edit_slide3(prs, rows, prev_range, cur_range, regua):
     delta_txt = fmt_nivel(regua["delta"]) if regua["delta"] != 0 else "0,0"
     nome_prev = LEVEL_NAMES[round(lvl_prev)]
     nome_new = LEVEL_NAMES[round(lvl_new)]
-    set_run_text(find_by_name(all_shapes, "TextBox 223"),
-                 f"{arrow} {delta_txt} · {nome_prev} → {nome_new}" if regua["delta"] != 0
-                 else f"= sem variação · {nome_new}")
+    if regua["delta"] == 0:
+        arrow_text = f"= sem variação · {nome_new}"
+    elif nome_prev == nome_new:
+        arrow_text = f"{arrow} {delta_txt} · dentro de {nome_new}"
+    else:
+        arrow_text = f"{arrow} {delta_txt} · {nome_prev} → {nome_new}"
+    set_run_text(find_by_name(all_shapes, "TextBox 223"), arrow_text)
 
     # --- ocorrências por tipo (grupo 'Agrupar 5') ---
     cur_rows = [r for r in rows if in_range(r, *cur_range)]
@@ -433,15 +428,22 @@ def edit_slide3(prs, rows, prev_range, cur_range, regua):
         tipos_graves = Counter(r["tipo"] for r in cur_rows if r["classif"] in ("ACA", "ASA", "Irreversível"))
         top_tipo = tipos_graves.most_common(1)[0][0].lower()
         destaque = f"{top_tipo} lidera as ocorrências graves"
+    resumo_acidentes = destaque if aca_n + asa_n == 0 else (
+        f"{aca_n} ACA{'s' if aca_n != 1 else ''} e {asa_n} ASA · {destaque}"
+    )
     if regua["delta"] == 0:
-        headline = f"Cultura estável em {nome_new} ({fmt_nivel(lvl_new)}); {destaque}" if aca_n + asa_n == 0 \
-            else f"Cultura estável em {nome_new} ({fmt_nivel(lvl_new)}); {aca_n} ACA{'s' if aca_n != 1 else ''} e {asa_n} ASA · {destaque}"
+        headline = f"Cultura estável em {nome_new} ({fmt_nivel(lvl_new)}); {resumo_acidentes}"
+    elif nome_prev == nome_new:
+        direcao = "sobe" if regua["delta"] > 0 else "recua"
+        headline = (
+            f"Cultura {direcao} dentro do nível {nome_new} "
+            f"({fmt_nivel(lvl_prev)}→{fmt_nivel(lvl_new)}); {resumo_acidentes}"
+        )
     else:
         direcao = "sobe" if regua["delta"] > 0 else "recua"
         headline = (
             f"Cultura {direcao} de {nome_prev} para {nome_new} "
-            f"({fmt_nivel(lvl_prev)}→{fmt_nivel(lvl_new)}); {aca_n} ACA{'s' if aca_n != 1 else ''} "
-            f"e {asa_n} ASA · {destaque}"
+            f"({fmt_nivel(lvl_prev)}→{fmt_nivel(lvl_new)}); {resumo_acidentes}"
         )
     set_run_text(find_by_name(all_shapes, "TextBox 3"), headline)
 

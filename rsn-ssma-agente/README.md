@@ -52,13 +52,18 @@ juntas também definem os dois blocos da tabela do slide 5.
   quebrado — nesse caso, adicione manualmente uma linha/cartão ao template
   antes de gerar.
 - **Nível da Régua de Maturidade é uma sugestão automática**, calculada a
-  partir das regras do slide 2 aplicadas às ocorrências da semana (ACA →
-  −0,5 teto; ASA isolado → −0,2; reincidência do mesmo desvio/unidade →
-  −0,3; autuação/notificação de terceiro citada na descrição → −0,2;
-  acidente irreversível → reset para 1,0). **Os gatilhos de alta (IPS/IPA
-  ≥ 90%, quase-acidente relatado) não estão na planilha e por isso nunca
-  são aplicados** — o nível só cai ou fica estável nesta versão do agente.
-  **Sempre revisar com o time de SSMA antes de publicar.**
+  partir das regras do slide 2 aplicadas às ocorrências da semana. Só o
+  gatilho mais severo presente na semana vale (não soma vários), igual ao
+  comportamento observado no template original (3 ACA + 1 ASA na mesma
+  semana produziram apenas −0,5, não −0,7):
+  - Acidente irreversível → reset para 1,0.
+  - Senão, ACA na semana → −0,5 (teto).
+  - Senão, ASA na semana → −0,2.
+  - Senão (semana sem ACA e sem ASA) → **+0,3**, usando a ausência de
+    acidentes como *proxy* de "IPS/IPA ≥ 90%" (proatividade sustentada),
+    já que a planilha não traz o indicador real de IPS/IPA nem os
+    quase-acidentes relatados. **Sempre revisar com o time de SSMA antes
+    de publicar** — é uma aproximação, não o cálculo oficial completo.
 
 ## Textos "de rascunho" — revisar antes de publicar
 
