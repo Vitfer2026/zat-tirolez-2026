@@ -22,6 +22,17 @@ Tamanho de página: A4 (21 x 29,7 cm), retrato. Usar paisagem apenas quando a
 tabela exigir mais colunas do que cabe em retrato (ex.: tabela de
 codificação) — nesse caso é uma seção `.docx` própria, não a página inteira.
 
+**Atenção ao recuo de primeira linha (1,25 cm):** confirmado no XML do
+`CORP-GQ-ANX-001.r04` que essa regra é aplicada por **formatação direta em
+cada parágrafo de texto corrido** (`w:ind w:firstLine="709"` = 1,25 cm),
+não é algo que vem "de graça" do estilo Normal (que no template está vazio
+de propriedades). Ao gerar `.docx` programaticamente, é fácil esquecer
+esse recuo porque nenhum estilo garante — aplicar
+`paragraph_format.first_line_indent = Cm(1.25)` em cada parágrafo de texto
+corrido explicitamente. **Não aplicar em:** títulos/subtítulos, itens de
+lista com marcador (já têm recuo próprio do nível de lista) e texto dentro
+de tabela (regra da tabela é "Nenhum").
+
 ## Cor de destaque das tabelas ("azul claro")
 
 Toda tabela usada em qualquer documento deve ter a **primeira linha** (linha
