@@ -91,6 +91,41 @@ FAROL_COLOR = {
     "Irreversível": "000000",
 }
 LEVEL_NAMES = {1: "Patológico", 2: "Reativo", 3: "Calculativo", 4: "Proativo", 5: "Generativo"}
+
+# Calibração da posição vertical (EMU) dos marcadores da régua visual (slide 3),
+# lida diretamente das duas posições conhecidas no template original (Shape 215/217
+# = linhas indicadoras, Shape 219/221 = rótulos), para nível 1,0 e 1,5. A escala do
+# quadro (lv0..lv4) é linear em EMU por nível, então interpolamos/extrapolamos
+# linearmente essas duas referências para qualquer nível entre 1 e 5.
+_LADDER_LINE_REF = ((1.0, 3673442), (1.5, 3404000))
+_LADDER_LABEL_REF = ((1.0, 3606457), (1.5, 3239456))
+
+
+def _ladder_top(v, ref):
+    (v0, t0), (v1, t1) = ref
+    return round(t0 + (t1 - t0) * (v - v0) / (v1 - v0))
+
+
+def ladder_line_top(v):
+    return _ladder_top(v, _LADDER_LINE_REF)
+
+
+def ladder_label_top(v):
+    return _ladder_top(v, _LADDER_LABEL_REF)
+
+
+def avoid_label_overlap(top_a, top_b, min_gap=340000):
+    """Os dois rótulos ('Sem. passada'/'Esta semana') têm ~320000 EMU de
+    altura; quando os níveis ficam próximos (comum, já que a variação
+    semanal é de 0,2 a 0,5), a posição calibrada da escala os faria
+    sobrepor. Afasta os dois simetricamente a partir do meio, preservando
+    qual dos dois fica visualmente mais acima."""
+    if abs(top_b - top_a) >= min_gap:
+        return top_a, top_b
+    mid = (top_a + top_b) / 2
+    if top_a <= top_b:
+        return round(mid - min_gap / 2), round(mid + min_gap / 2)
+    return round(mid + min_gap / 2), round(mid - min_gap / 2)
 MESES_PT = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO",
             "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"]
 
@@ -379,6 +414,14 @@ def edit_slide3(prs, rows, prev_range, cur_range, regua):
     lvl_new = regua["new_level"]
     set_run_text(find_by_name(all_shapes, "Shape 219"), f"Sem. passada {fmt_nivel(lvl_prev)}")
     set_run_text(find_by_name(all_shapes, "Shape 221"), f"Esta semana {fmt_nivel(lvl_new)}")
+
+    # reposiciona os marcadores na escala visual da régua (1 a 5) — o texto por si só
+    # não move o indicador; sem isso, os marcadores ficam presos na posição da semana anterior.
+    find_by_name(all_shapes, "Shape 215").top = Emu(ladder_line_top(lvl_prev))
+    find_by_name(all_shapes, "Shape 217").top = Emu(ladder_line_top(lvl_new))
+    label_prev_top, label_new_top = avoid_label_overlap(ladder_label_top(lvl_prev), ladder_label_top(lvl_new))
+    find_by_name(all_shapes, "Shape 219").top = Emu(label_prev_top)
+    find_by_name(all_shapes, "Shape 221").top = Emu(label_new_top)
     if regua["delta"] > 0:
         arrow = "▲"
     elif regua["delta"] < 0:
