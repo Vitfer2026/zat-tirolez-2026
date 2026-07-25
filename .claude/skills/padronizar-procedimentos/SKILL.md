@@ -31,6 +31,16 @@ reabrir o `.docx` toda vez:
   para cada tipo de documento. **Este é o arquivo mais importante**: é
   ele que diz que seções o documento final precisa ter e em que ordem.
 
+`scripts/gerador_padrao.py` implementa em código Python (python-docx)
+tudo o que os arquivos de referência acima descrevem em texto: fonte,
+recuo de primeira linha, tabelas com cor de destaque, cabeçalho/rodapé/
+capa exatos, e o campo dinâmico de página — já testado e calibrado
+contra documentos reais (inclusive dois bugs reais encontrados e
+corrigidos: campo de página malformado e uso de `titlePg` que não
+renderiza em leitores simples). **Usar esse script em vez de
+reimplementar essas funções do zero** — ver o docstring no topo do
+arquivo para o padrão de uso.
+
 Se o usuário enviar uma versão mais nova do template (`CORP-GQ-ANX-001`
 com revisão maior que r04), atualize o arquivo em `assets/` e revise os
 arquivos de referência contra a nova versão antes de padronizar qualquer
@@ -70,25 +80,43 @@ silenciosamente.
 
 ### Fase 2 — Reconstrução
 
-Trabalhar por edição direta do XML do `.docx` (abordagem "editar
-documento existente" da skill `docx`: `unzip` → editar `word/document.xml`
-→ `zip`), não recriando o arquivo do zero em `docx-js` — isso preserva
-imagens, tabelas aninhadas e relações internas do documento original sem
-precisar re-inserir cada imagem manualmente.
+Duas abordagens possíveis — escolher pela distância entre o documento de
+entrada e o padrão final:
+
+- **Ajuste leve** (a estrutura de seções já bate com o escopo certo, só
+  faltam formatação/cabeçalho/rodapé): editar o XML existente
+  diretamente (abordagem "editar documento existente" da skill `docx`:
+  `unzip` → editar `word/document.xml` → `zip`). Preserva imagens,
+  tabelas aninhadas e relações internas sem precisar re-inserir nada.
+- **Reconstrução pesada** (falta capa, seções fora de ordem, cabeçalho/
+  rodapé vindo de uma estrutura totalmente diferente — foi o caso mais
+  comum até agora): montar o documento do zero com `python-docx`,
+  usando `scripts/gerador_padrao.py` para cabeçalho/rodapé/capa/
+  formatação, e extrair as imagens do `.docx` original (`unzip` →
+  `word/media/`) para reinserir com `add_photo()` nos pontos certos.
+  **Normalizar o DPI das imagens extraídas com Pillow
+  (`im.save(path, dpi=(96,96))`) antes de inserir** — fotos de celular
+  costumam vir sem DPI informado, e `python-docx`/`Image.width` estoura
+  `ZeroDivisionError` nesse caso.
+
+Em ambos os casos:
 
 1. **Cabeçalho/rodapé/capa**: reconstruir conforme
-   `references/cabecalho-rodape-capa.md`, preenchendo com os metadados
-   reais do documento (código, revisão, datas, título, unidade). Se o
-   documento de entrada já tiver essas informações só que malformatadas,
-   extrair os valores de lá — não inventar datas ou números de revisão.
+   `references/cabecalho-rodape-capa.md` (ou `build_header`/`build_footer`/
+   `build_capa`/`nova_secao_apos_capa` de `gerador_padrao.py`),
+   preenchendo com os metadados reais do documento (código, revisão,
+   datas, título, unidade). Se o documento de entrada já tiver essas
+   informações só que malformatadas, extrair os valores de lá — não
+   inventar datas ou números de revisão.
 2. **Formatação**: aplicar as regras de `references/formatacao.md` (fonte
    Arial, tamanhos 12/9, margens 1,5 cm, alinhamento, cor `#DBE5F1` no
-   cabeçalho de toda tabela, espaçamento).
+   cabeçalho de toda tabela, espaçamento, recuo de primeira linha).
 3. **Estrutura de seções**: mapear o conteúdo existente para as seções do
    escopo correto (`references/escopos-por-tipo.md`). Ao mover o conteúdo
-   de uma etapa que contém imagem ou tabela aninhada, mover o nó XML
-   inteiro (parágrafo/tabela com seus `w:drawing`/relações), não
-   retranscrever a imagem como texto.
+   de uma etapa que contém imagem ou tabela aninhada, preservar a imagem
+   (mover o nó XML na abordagem de ajuste leve, ou extrair e reinserir
+   com `add_photo()` na reconstrução pesada) — nunca retranscrever a
+   imagem como texto.
 4. **Redação**: ajustar verbos para infinitivo/imperativo, títulos de
    item para maiúsculo, ordenar Definições e Documentos de Referência
    conforme pedido no escopo, sem alterar o significado técnico.
@@ -102,7 +130,11 @@ precisar re-inserir cada imagem manualmente.
 1. `python scripts/office/validate.py <saida.docx> --original <entrada.docx>`
    (script da skill `docx`) para checar XML contra o schema OOXML. **Isso
    não é suficiente sozinho** — passar no XSD não garante que o Word vai
-   conseguir abrir o arquivo (ver próximo item).
+   conseguir abrir o arquivo (ver próximo item). Se o documento foi
+   gerado com `gerador_padrao.py`, salvar com `salvar_docx(doc, caminho)`
+   em vez de `doc.save()` — corrige de antemão um defeito conhecido do
+   `python-docx` no `<w:zoom>` de `settings.xml` que senão aparece como
+   erro de validação (inofensivo na prática, mas evita ruído).
 2. Reabrir o `.docx` gerado com `python-docx` e conferir: contagem de
    imagens preservada, todas as seções do escopo presentes na ordem
    certa, cabeçalho/rodapé com os campos certos, cor de tabela `#DBE5F1`
