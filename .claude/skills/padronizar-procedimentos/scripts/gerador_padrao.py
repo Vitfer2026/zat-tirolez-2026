@@ -3,13 +3,16 @@ Helpers reutilizaveis para gerar documentos .docx no padrao corporativo
 CORP-GQ-ANX-001 (ver references/ na raiz desta skill para as regras que
 cada funcao aqui implementa).
 
-Nao e' um script de linha de comando: e' uma biblioteca para importar e
-chamar a partir do script de padronizacao de um documento especifico,
-porque o CONTEUDO (secoes, tabelas, textos) muda a cada documento -- so a
-FORMA (fonte, margens, cabecalho, rodape, capa, campos de pagina) e'
-fixa e vale a pena reaproveitar.
+Nao e' um script de linha de comando, nem especifico de nenhuma area ou
+tipo de documento (ETE, fabricacao, qualidade, etc.) -- e' uma biblioteca
+generica para importar e chamar a partir do script de padronizacao de
+QUALQUER procedimento que chegar (POP, IT, Manual, Programa, PAC, Tabela
+de Higienizacao, PAP...), porque o CONTEUDO (secoes, tabelas, textos)
+muda a cada documento -- so a FORMA (fonte, margens, cabecalho, rodape,
+capa, campos de pagina) e' fixa para todos e vale a pena reaproveitar.
 
-Uso tipico:
+Uso tipico (os valores abaixo sao so' exemplo -- vem do documento sendo
+padronizado a cada execucao, nunca fixos):
 
     import sys
     sys.path.insert(0, "<caminho-desta-skill>/scripts")
@@ -17,17 +20,18 @@ Uso tipico:
 
     doc = Document()
     setup_pagina(doc.sections[0])
-    build_header(doc.sections[0].header, codigo="TIR-UTL-PR-001",
-                 tipo_documento="PROCEDIMENTO", titulo="...", revisao="0",
-                 data_revisao="Maio/2026", data_aprovacao="A definir",
-                 unidade="TIROS - MG", logo_path=LOGO_PADRAO)
+    build_header(doc.sections[0].header, codigo="<CODIGO-DO-DOCUMENTO>",
+                 tipo_documento="<POP|IT|MANUAL|PROGRAMA|...>", titulo="...",
+                 revisao="<N>", data_revisao="<DD/MM/AAAA>",
+                 data_aprovacao="<DD/MM/AAAA>", unidade="<UNIDADE>",
+                 logo_path=LOGO_PADRAO)
     build_footer(doc.sections[0].footer, elaboracao="Fulano", ...)
-    build_capa(doc, titulo="...", logo_path=LOGO_PADRAO)
+    build_capa(doc, titulo="...", logo_path=LOGO_PADRAO)  # so' p/ tipos com capa
     nova_secao_apos_capa(doc)  # cabecalho continua, rodape para
     heading(doc, "1. OBJETIVOS")
     para(doc, "texto do objetivo...")
     ...
-    doc.save("saida.docx")
+    salvar_docx(doc, "saida.docx")
 
 Gotchas ja' descobertos na pratica (nao repetir):
 - Cada <w:fldChar>/<w:instrText> de um campo (PAGE/NUMPAGES) precisa
