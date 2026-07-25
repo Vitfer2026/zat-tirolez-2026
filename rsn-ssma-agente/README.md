@@ -32,7 +32,7 @@ python3 gerar_apresentacao.py ... --inicio 19/07/2026 --fim 25/07/2026
 | 3 — Termômetro de Cultura | Contagens por classificação, nível da régua (sugestão), quadro "Evolução por unidade" (redimensionado conforme unidades ativas), totais da semana, headline |
 | 4 — Pirâmide de Segurança YTD | Tabela YTD completa (recomputada do zero a cada semana), KPIs, cartões de ACA/irreversível da semana (redimensionados), headline |
 | 5 — Log de ocorrências | Tabela detalhada (linhas adicionadas/removidas conforme o volume real da semana, cor do "Farol" por classificação) |
-| 6 — ETE (DQO/O₂/SD) | **Não tocado** — esta planilha não tem dados de ETE. Continua sendo atualizado manualmente. |
+| 6 — ETE (DQO/O₂/SD) | **Removido da apresentação gerada** — esta planilha não tem dados de ETE. Se ele precisar entrar na apresentação final, é um passo manual separado (feito em outra cópia/processo, fora deste agente). |
 
 ## Fonte de dados
 
@@ -70,8 +70,9 @@ no `stdout` do script para conferência rápida.
 
 ## Limitações conhecidas
 
-- Slide 6 (ETE) precisa de outra fonte de dados (DQO/O₂/SD/kgDQO por
-  unidade) — não incluída nesta planilha. Continua manual.
+- O slide 6 (ETE) é excluído da apresentação gerada — a lógica de
+  atualizá-lo (DQO/O₂/SD/kgDQO por unidade) não faz parte deste agente,
+  pois essa planilha não tem esses dados. A saída sempre tem 5 slides.
 - A validação visual (renderização das imagens do slide) depende do
   LibreOffice; em ambientes sem ele, valide com:
   ```bash

@@ -9,8 +9,9 @@ Uso:
         --saida Pre_RSN_Atualizada_v10.pptx
 
 Escopo: slides 1, 3, 4 e 5 (dados de ocorrências das abas "Tirolez" e
-"Levitare|Regina"). O slide 2 (metodologia) e o slide 6 (ETE) não têm fonte
-de dados nesta planilha e são copiados sem alteração.
+"Levitare|Regina"). O slide 2 (metodologia) é copiado sem alteração. O
+slide 6 (ETE/meio ambiente) não tem fonte de dados nesta planilha e é
+removido da apresentação gerada.
 """
 import argparse
 import copy
@@ -300,6 +301,18 @@ def find_by_text(shapes, text):
 
 def delete_shape(shape):
     shape._element.getparent().remove(shape._element)
+
+
+def delete_slide(prs, index):
+    """Remove o slide `index` (0-based) da apresentação, junto com o
+    relacionamento correspondente em presentation.xml.rels."""
+    sldIdLst = prs.slides._sldIdLst
+    slide_id_elements = list(sldIdLst)
+    r_id = slide_id_elements[index].attrib[
+        "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
+    ]
+    prs.part.drop_rel(r_id)
+    sldIdLst.remove(slide_id_elements[index])
 
 
 def set_cell_text_keep_format(cell, new_text):
@@ -750,6 +763,8 @@ def main():
     edit_slide3(prs, rows, prev_range, cur_range, regua)
     edit_slide4(prs, rows, prev_range, cur_range, regua)
     edit_slide5(prs, rows, cur_range)
+    delete_slide(prs, 5)  # slide 6 — ETE/meio ambiente: sem fonte de dados, removido
+    print("Slide 6 (ETE/meio ambiente) removido — sem fonte de dados nesta planilha.")
 
     prs.save(args.saida)
     print(f"Gerado: {args.saida}")

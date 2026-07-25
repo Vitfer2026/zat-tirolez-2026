@@ -45,6 +45,7 @@ em que o script para com erro em vez de arriscar quebrar o layout
    tente contornar automaticamente** — avisar o usuário que o template
    precisa de um ajuste manual (adicionar linha/cartão) antes de rodar
    de novo.
-6. O slide 6 (ETE/DQO) nunca é tocado por este agente — se a planilha de
-   ETE estiver disponível, isso é um passo manual separado (ou uma
-   extensão futura do script, fora do escopo atual).
+6. O slide 6 (ETE/DQO) é **removido** da apresentação gerada — a saída
+   sempre tem 5 slides. Se a planilha de ETE estiver disponível no
+   futuro, adicionar esse slide de volta é uma extensão separada, fora
+   do escopo atual deste agente.
