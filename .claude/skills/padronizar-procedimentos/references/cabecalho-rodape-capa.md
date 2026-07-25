@@ -124,6 +124,33 @@ inferir das Responsabilidades do próprio documento e sinalizar a
 suposição — não deixar a linha simplesmente ausente, pois isso muda a
 estrutura da tabela (2 linhas é o padrão).
 
+## Como implementar "cabeçalho igual em toda página, rodapé só na 1ª" via python-docx
+
+**Não usar `section.different_first_page_header_footer = True` (mecanismo
+`w:titlePg` + `first_page_header`/`first_page_footer`).** É válido em
+OOXML e o Word desktop entende, mas confirmado na prática (testado pelo
+usuário via Quick Look do iOS, que também é como muita gente abre um
+`.docx` recebido no celular antes de abrir no Word de verdade) que
+leitores mais simples **não renderizam o header/footer da variante
+"primeira página"** quando esse mecanismo está ativo — o sintoma é o
+cabeçalho inteiro sumir da capa (e só ela).
+
+**Usar duas seções de verdade em vez disso** (`doc.add_section(WD_SECTION.NEW_PAGE)`
+logo antes do conteúdo que vem depois da capa):
+- Seção 1 (capa): header e footer **próprios** (`is_linked_to_previous = False`
+  em ambos), footer com a tabela Elaboração/Verificação/Aprovação.
+- Seção 2 (resto do documento): **header ligado à seção anterior**
+  (`is_linked_to_previous = True` — não construir de novo, herda
+  automaticamente e sem `headerReference` próprio no XML, que é o jeito
+  mais simples e compatível de repetir o mesmo cabeçalho), footer **não**
+  ligado (`is_linked_to_previous = False`) e deixado vazio.
+
+Resultado: nenhuma seção usa `w:titlePg`, cada seção tem só header/footer
+"default" — suportado por qualquer leitor de `.docx`, não só Word
+desktop. Conferir depois de gerar que o XML da seção 2 **não tem**
+`<w:headerReference>` (prova de que está herdando corretamente, não
+duplicando).
+
 **Nota Excel:** planilhas (`.xlsx`) têm restrições de cabeçalho/rodapé
 automático no software de gestão — nesses casos, preencher previamente
 seguindo o exemplo `CORP-GQ-ANX-003`. Isso não se aplica a documentos
