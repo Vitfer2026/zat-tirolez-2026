@@ -100,11 +100,19 @@ precisar re-inserir cada imagem manualmente.
 ### Fase 3 — Validação
 
 1. `python scripts/office/validate.py <saida.docx> --original <entrada.docx>`
-   (script da skill `docx`) para checar XML contra o schema OOXML.
+   (script da skill `docx`) para checar XML contra o schema OOXML. **Isso
+   não é suficiente sozinho** — passar no XSD não garante que o Word vai
+   conseguir abrir o arquivo (ver próximo item).
 2. Reabrir o `.docx` gerado com `python-docx` e conferir: contagem de
    imagens preservada, todas as seções do escopo presentes na ordem
    certa, cabeçalho/rodapé com os campos certos, cor de tabela `#DBE5F1`
-   aplicada nos cabeçalhos de coluna.
+   aplicada nos cabeçalhos de coluna. Se o cabeçalho/rodapé usar campos
+   dinâmicos (`PAGE`/`NUMPAGES`), verificar que cada `<w:fldChar>` e
+   `<w:instrText>` está em um `<w:r>` próprio, nunca todos empacotados no
+   mesmo run — isso passa no XSD mas já causou o cabeçalho inteiro
+   sumir ao abrir no Word de verdade (ver `references/cabecalho-rodape-capa.md`).
+   Buscar por esse padrão especificamente após qualquer alteração no
+   código que gera campos.
 3. Tentar renderizar com `soffice`/`pdftoppm` (ver skill `docx`) e olhar
    as páginas — isso é o ideal para pegar problemas visuais que a
    inspeção de XML não mostra. **Se o ambiente não conseguir converter

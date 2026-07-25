@@ -49,6 +49,19 @@ Conteúdo exato dos 6 parágrafos da coluna 3, na ordem:
 3. `Data Revisão: ` (negrito) + valor (não negrito)
 4. `Data Aprovação: ` (negrito) + valor (não negrito)
 5. `Página: ` (negrito) + campo dinâmico `PAGE` + ` de ` + campo dinâmico `NUMPAGES` (usar campos de verdade, não número fixo — é assim que o software da empresa preenche e é o único jeito de ficar correto em qualquer paginação)
+
+**Bug real já cometido e corrigido ao gerar campo `PAGE`/`NUMPAGES` via
+`python-docx`:** cada `<w:fldChar>` (begin/separate/end) e o
+`<w:instrText>` precisam estar em **runs (`<w:r>`) separados**, um
+elemento por run — nunca todos dentro do mesmo `<w:r>`. Empacotar tudo
+num único run passa despercebido pela validação de schema (XSD não
+reclama), mas quebra o parser de campo complexo do Word na prática: o
+sintoma foi o **cabeçalho inteiro sumir ao abrir o arquivo**, não só o
+número da página. Conferido contra `CORP-GQ-PAC-003` (que também usa
+`PAGE`/`NUMPAGES`): lá cada `fldChar`/`instrText` tem seu próprio `<w:r>`,
+com a mesma `rPr` repetida em cada um. Incluir também um valor
+"cacheado" (texto literal) entre `separate` e `end` (ex.: `1`), como
+fallback visual antes do Word recalcular o campo.
 6. Nome da unidade/localidade, sozinho, **em negrito** (ex.: "TIROLEZ" no anexo corporativo, "TIROS - MG" num documento de planta)
 
 Exemplo real confirmado (`TIR-1-FAB-POP-004`, mesma estrutura):
