@@ -2,15 +2,34 @@
 
 ## Capa
 
-Obrigatória para **Manuais, Programas e Procedimentos** (documentos de
-"gestão", tipicamente maiores). Composta por: cabeçalho padrão, título do
-documento, imagem/slogan do departamento ou projeto (se aplicável) e
-rodapé.
+Obrigatória para **Manuais, PAC, Programas e Procedimentos** (documentos
+de "gestão", tipicamente maiores). Confirmada em 3 exemplos reais
+(`CORP-GQ-PAC-003`, `TIR-GQ-MAN-002`, `CORP-GQ-PRO-003`) — a receita é bem
+mais enxuta do que se poderia supor:
+
+1. Vários parágrafos em branco (espaçamento vertical, sem conteúdo).
+2. **Título do documento, sozinho, 28pt, negrito, centralizado,
+   maiúsculo** (ex.: "CONTROLE INTEGRADO DE PRAGAS",
+   "SISTEMA DE GESTÃO DA QUALIDADE E SEGURANÇA DE ALIMENTOS",
+   "GESTÃO DE OCORRÊNCIAS"). É só isso — **não** repetir o tipo de
+   documento ("PROGRAMA", "MANUAL") nem o nome da unidade na capa: esses
+   dados já estão no cabeçalho, que se repete em toda página inclusive a
+   primeira.
+3. Uma imagem centralizada (mascote/ícone do departamento — nos 3
+   exemplos reais é o mesmo mascote em formato de queijo com uma prancheta,
+   variando só o texto/selo impresso na prancheta conforme o assunto do
+   documento; é a "imagem/slogan do departamento ou projeto" citada no
+   template). Se não houver arte específica do departamento disponível,
+   usar a logo da empresa como alternativa e sinalizar que é um
+   placeholder — não inventar um mascote/ícone novo.
+4. Mais parágrafos em branco.
+5. Quebra de página / início direto da primeira seção do escopo (`1.
+   OBJETIVO(S)` etc.) — **sem** repetir código/revisão na capa.
 
 POP e IT normalmente **não têm capa separada** — a primeira página já
 começa pelo cabeçalho seguido direto da tabela de informações do
-procedimento (ver `escopos-por-tipo.md`). Isso foi confirmado no exemplo
-real `TIR-1-FAB-POP-004`, que não tem capa.
+procedimento (ver `escopos-por-tipo.md`). Isso foi confirmado nos
+exemplos reais `TIR-1-FAB-POP-004` e `MON-EBP-POP-002`, que não têm capa.
 
 ## Cabeçalho (repete em todas as páginas)
 
@@ -43,11 +62,30 @@ Página: 1 de 2
 TIROS - MG
 ```
 
-**Erro comum a evitar:** construir isso como uma tabela de 6 linhas com
-`merge` vertical nas colunas 1 e 2. Visualmente pode parecer parecido, mas
-gera bordas horizontais indesejadas entre cada linha de metadado (porque o
-estilo de tabela do padrão é "Tabela com Grade", que desenha toda borda de
-linha) e não é fiel à estrutura real do documento oficial.
+**Atualização após checar 4 documentos reais adicionais
+(`CORP-GQ-PAC-003`, `TIR-GQ-MAN-002`, `MON-EBP-POP-002`,
+`CORP-GQ-PRO-003`):** as duas construções abaixo são **igualmente
+válidas** e visualmente indistinguíveis — a empresa usa as duas
+(3 dos 4 documentos novos usam a primeira; o anexo template e
+`CORP-GQ-PRO-003` usam a segunda):
+
+- **Tabela de 6 linhas x 3 colunas**, com `merge` vertical nas colunas 1
+  (logo) e 2 (tipo+título), e a coluna 3 com uma linha de metadado por
+  linha da tabela. **O detalhe que faz isso funcionar**: a borda
+  horizontal entre as linhas da coluna 3 é pintada de **branco**
+  (`w:color="FFFFFF"` no `tcBorders`), não removida — por isso não
+  aparece nenhuma linha visível entre "Código:", "Revisão:" etc., mesmo a
+  tabela usando o estilo "Tabela com Grade" (que desenha toda borda por
+  padrão). Esquecer de branquear essa borda é o erro mais fácil de
+  cometer nessa construção.
+- **Tabela de 1 linha x 3 colunas**, com a coluna 2 e a coluna 3 tendo
+  vários parágrafos empilhados dentro da mesma célula (usada no anexo
+  `CORP-GQ-ANX-001` e em `CORP-GQ-PRO-003`). Não tem bordas internas para
+  esconder porque não há células extras.
+
+Qualquer uma das duas é aceitável para gerar `.docx` programaticamente —
+a de 1 linha é mais simples de implementar (não precisa branquear
+bordas) e foi a adotada nesta skill.
 
 ## Rodapé (só na primeira página, não replicar nas demais)
 
