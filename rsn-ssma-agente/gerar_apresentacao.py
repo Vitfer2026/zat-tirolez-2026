@@ -805,8 +805,11 @@ def edit_slide5(prs, rows, cur_range):
     tbl_shape = next(s for s in slide.shapes if s.has_table)
     tbl = tbl_shape.table
 
-    tirolez_rows = sorted([r for r in rows if r["semana"] == "atual" and r["bloco"] == "Tirolez"], key=lambda r: r["data"])
-    levreg_rows = sorted([r for r in rows if r["semana"] == "atual" and r["bloco"] == "Levitare|Regina"], key=lambda r: r["data"])
+    # agrupado por unidade (e cronológico dentro de cada unidade) — ordenar só
+    # por data intercalava as unidades (ex.: Levitare e Regina alternando linha
+    # a linha), dificultando a leitura por unidade.
+    tirolez_rows = sorted([r for r in rows if r["semana"] == "atual" and r["bloco"] == "Tirolez"], key=lambda r: (r["unidade"], r["data"]))
+    levreg_rows = sorted([r for r in rows if r["semana"] == "atual" and r["bloco"] == "Levitare|Regina"], key=lambda r: (r["unidade"], r["data"]))
 
     # dimensões atuais: header(3 linhas: título+subtítulo+cabeçalho) + N1 + separador(1) + N2 + legenda(1)
     total_rows_before = len(tbl.rows)
