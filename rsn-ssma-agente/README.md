@@ -15,12 +15,11 @@ python3 gerar_apresentacao.py \
     --saida Pre_RSN_Atualizada_v10.pptx
 ```
 
-O intervalo da semana é inferido automaticamente (semana anterior lida do
-próprio `--pptx-anterior`, semana atual = dia seguinte até +7 dias, sem
-sobreposição). Para forçar um intervalo diferente:
+O intervalo da semana é inferido automaticamente a partir do `--pptx-anterior`
+(veja a regra de fronteira abaixo). Para forçar um intervalo diferente:
 
 ```bash
-python3 gerar_apresentacao.py ... --inicio 19/07/2026 --fim 25/07/2026
+python3 gerar_apresentacao.py ... --inicio 18/07/2026 --fim 24/07/2026
 ```
 
 ## Escopo (o que o agente atualiza)
@@ -42,8 +41,20 @@ juntas também definem os dois blocos da tabela do slide 5.
 
 ## Decisões de projeto (confirmadas com o time)
 
-- **Semanas não se sobrepõem**: a semana atual começa no dia seguinte ao
-  fim da semana anterior (ex.: anterior 11/07–18/07 → atual 19/07–25/07).
+- **Semanas normais vão de sábado a sexta (7 dias) e nunca se sobrepõem.**
+  A semana atual é sempre inferida como o sábado seguinte à sexta de
+  fechamento da semana anterior — mesmo que o `.pptx` anterior mostre uma
+  data de fim que não é sexta (isso acontece por causa da exceção do ACA
+  abaixo; o script volta para a sexta mais recente antes de calcular).
+- **Exceção do ACA (sexta a segunda)**: um ACA que acontece entre sábado e
+  segunda da semana nova é reportado de imediato no relatório que está
+  sendo fechado (conta como "semana anterior", não espera o ciclo
+  seguinte) — por isso um relatório pode aparecer com a data de fim
+  "estendida" até esse ACA. O agente detecta esse ACA automaticamente
+  pela data e pelo classificador "ACA", soma-o na contagem da semana
+  anterior e **não o duplica** na semana atual — mesmo que a data dele já
+  esteja dentro do intervalo novo. Todo ACA puxado aparece no `stdout` do
+  script para conferência.
 - **Quadro "Evolução por unidade" (slide 3) e cartões de ACA (slide 4)
   encolhem** para mostrar só as unidades/eventos realmente ativos —
   não ficam vagas fixas com "–". Se o número de unidades ativas (soma das

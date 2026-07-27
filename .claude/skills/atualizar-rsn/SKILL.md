@@ -12,11 +12,12 @@ apresentação semanal a partir de dois insumos que o usuário deve fornecer:
 2. A apresentação `.pptx` da semana anterior.
 
 Leia `rsn-ssma-agente/README.md` primeiro — ele documenta o escopo exato
-(quais slides são tocados), as decisões de projeto já validadas com o
-time (semanas sem sobreposição, quadros que encolhem em vez de manter
-vagas vazias, régua de maturidade como sugestão automática) e os limites
-em que o script para com erro em vez de arriscar quebrar o layout
-(mais de 8 unidades ativas, mais de 3 ACA/irreversíveis na semana).
+(quais slides são tocados), a regra de fronteira de semana (sábado a
+sexta, com a exceção do ACA puxado para o relatório que está fechando),
+quadros que encolhem em vez de manter vagas vazias, régua de maturidade
+como sugestão automática, e os limites em que o script para com erro em
+vez de arriscar quebrar o layout (mais de 8 unidades ativas, mais de 3
+ACA/irreversíveis na semana).
 
 ## Passos
 
@@ -29,7 +30,8 @@ em que o script para com erro em vez de arriscar quebrar o layout
        --saida <nome_da_saida.pptx>
    ```
 3. Ler a saída do script no terminal — ela lista o intervalo de datas
-   inferido, a sugestão de nível da régua de maturidade e os motivos.
+   inferido, qualquer ACA puxado para o relatório anterior (não
+   duplicado), a sugestão de nível da régua de maturidade e os motivos.
    **Sinalizar ao usuário que a régua e as frases de resumo (headlines)
    são sugestões automáticas e precisam de revisão do time de SSMA antes
    de publicar** — isso está documentado no README.

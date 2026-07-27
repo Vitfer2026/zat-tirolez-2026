@@ -184,6 +184,35 @@ def in_range(row, start, end):
     return start <= row["data"] <= end
 
 
+def previous_friday_or_same(d):
+    """Retrocede `d` até a sexta-feira mais recente (ou mantém, se já for
+    sexta). Usado para achar o fechamento normal de semana mesmo quando a
+    data mostrada foi estendida pela exceção de ACA (veja classify_week)."""
+    days_since_friday = (d.weekday() - 4) % 7  # weekday(): seg=0 ... sex=4
+    return d - datetime.timedelta(days=days_since_friday)
+
+
+def classify_week(row, cur_start, cur_end):
+    """Classifica uma ocorrência como da semana 'anterior', 'atual', ou
+    nenhuma (None). Semanas normais são sábado a sexta (7 dias), sempre
+    contíguas: a semana anterior é sempre cur_start-7 .. cur_start-1.
+
+    Exceção: um ACA que acontece entre sábado e segunda da semana atual
+    (os 3 primeiros dias) é reportado de imediato no relatório que está
+    sendo fechado agora — conta como 'anterior', não 'atual' — para não
+    esperar o ciclo inteiro fechar antes de escalar um acidente grave."""
+    prev_start = cur_start - datetime.timedelta(days=7)
+    prev_end = cur_start - datetime.timedelta(days=1)
+    exception_end = cur_start + datetime.timedelta(days=2)  # sábado + 2 = segunda
+    if row["classif"] == "ACA" and cur_start <= row["data"] <= exception_end:
+        return "anterior"
+    if prev_start <= row["data"] <= prev_end:
+        return "anterior"
+    if cur_start <= row["data"] <= cur_end:
+        return "atual"
+    return None
+
+
 # --------------------------------------------------------------------------
 # Extrair intervalo da semana anterior a partir do pptx anterior
 # --------------------------------------------------------------------------
@@ -375,12 +404,12 @@ def edit_slide1(prs, start, end):
 # Slide 3 — termômetro de cultura
 # --------------------------------------------------------------------------
 
-def build_unit_matrix(rows, prev_range, cur_range):
-    units = sorted({r["unidade"] for r in rows if in_range(r, *prev_range) or in_range(r, *cur_range)})
+def build_unit_matrix(rows):
+    units = sorted({r["unidade"] for r in rows if r["semana"] in ("anterior", "atual")})
     data = []
     for u in units:
-        prev_rows = [r for r in rows if r["unidade"] == u and in_range(r, *prev_range)]
-        cur_rows = [r for r in rows if r["unidade"] == u and in_range(r, *cur_range)]
+        prev_rows = [r for r in rows if r["unidade"] == u and r["semana"] == "anterior"]
+        cur_rows = [r for r in rows if r["unidade"] == u and r["semana"] == "atual"]
 
         def counts(rs):
             d = sum(1 for r in rs if r["classif"] == "Desvio")
@@ -405,7 +434,7 @@ def arrow_cell_text(prev, cur):
     return f"{prev}→{cur}"
 
 
-def edit_slide3(prs, rows, prev_range, cur_range, regua):
+def edit_slide3(prs, rows, regua):
     slide = prs.slides[2]
     all_shapes = list(slide.shapes)
 
@@ -440,8 +469,8 @@ def edit_slide3(prs, rows, prev_range, cur_range, regua):
     set_run_text(find_by_name(all_shapes, "TextBox 223"), arrow_text)
 
     # --- ocorrências por tipo (grupo 'Agrupar 5') ---
-    cur_rows = [r for r in rows if in_range(r, *cur_range)]
-    prev_rows = [r for r in rows if in_range(r, *prev_range)]
+    cur_rows = [r for r in rows if r["semana"] == "atual"]
+    prev_rows = [r for r in rows if r["semana"] == "anterior"]
 
     def count(rs, classif):
         return sum(1 for r in rs if r["classif"] == classif)
@@ -491,7 +520,7 @@ def edit_slide3(prs, rows, prev_range, cur_range, regua):
     set_run_text(find_by_name(all_shapes, "TextBox 3"), headline)
 
     # --- quadro EVOLUÇÃO POR UNIDADE ---
-    matrix = build_unit_matrix(rows, prev_range, cur_range)
+    matrix = build_unit_matrix(rows)
     n_new = len(matrix)
     n_old = 8
     row_pitch = Emu(152000)
@@ -583,7 +612,7 @@ def pyramid_count(rows, classif_target, col, until):
     return sum(1 for r in sel if r["unidade"] in units and r["tipo"] not in ("Trajeto", "Terceiro"))
 
 
-def edit_slide4(prs, rows, prev_range, cur_range, regua):
+def edit_slide4(prs, rows, cur_range, regua):
     slide = prs.slides[3]
     all_shapes = list(slide.shapes)
     start, end = cur_range
@@ -594,7 +623,7 @@ def edit_slide4(prs, rows, prev_range, cur_range, regua):
         if shape.has_text_frame and "SEMANA" in shape.text_frame.text.upper() and "VAMOS" in shape.text_frame.text.upper():
             set_run_text(shape, f"VAMOS FALAR DE SEGURANÇA?     SEMANA {start.strftime('%d/%m')} – {end.strftime('%d/%m/%Y')} · YTD atualizado")
 
-    cur_rows = [r for r in rows if in_range(r, *cur_range)]
+    cur_rows = [r for r in rows if r["semana"] == "atual"]
     aca_n, asa_n, irrev_n = regua["aca_n"], regua["asa_n"], regua["irrev_n"]
 
     # tabela pirâmide
@@ -724,8 +753,8 @@ def edit_slide5(prs, rows, cur_range):
     tbl_shape = next(s for s in slide.shapes if s.has_table)
     tbl = tbl_shape.table
 
-    tirolez_rows = sorted([r for r in rows if in_range(r, *cur_range) and r["bloco"] == "Tirolez"], key=lambda r: r["data"])
-    levreg_rows = sorted([r for r in rows if in_range(r, *cur_range) and r["bloco"] == "Levitare|Regina"], key=lambda r: r["data"])
+    tirolez_rows = sorted([r for r in rows if r["semana"] == "atual" and r["bloco"] == "Tirolez"], key=lambda r: r["data"])
+    levreg_rows = sorted([r for r in rows if r["semana"] == "atual" and r["bloco"] == "Levitare|Regina"], key=lambda r: r["data"])
 
     # dimensões atuais: header(3 linhas: título+subtítulo+cabeçalho) + N1 + separador(1) + N2 + legenda(1)
     total_rows_before = len(tbl.rows)
@@ -782,31 +811,44 @@ def main():
     args = ap.parse_args()
 
     prs = Presentation(args.pptx_anterior)
-    prev_start, prev_end = extract_prev_range(prs)
+    prev_start_shown, prev_end_shown = extract_prev_range(prs)
     if args.inicio and args.fim:
         cur_start = datetime.datetime.strptime(args.inicio, "%d/%m/%Y")
         cur_end = datetime.datetime.strptime(args.fim, "%d/%m/%Y")
     else:
-        cur_start = prev_end + datetime.timedelta(days=1)
-        cur_end = prev_end + datetime.timedelta(days=7)
-    prev_range = (prev_start, prev_end)
+        # semanas normais são sábado a sexta (7 dias); previous_friday_or_same
+        # também acerta o caso em que a semana anterior foi mostrada "estendida"
+        # por ter puxado um ACA de sábado/domingo/segunda pra dentro dela.
+        normal_friday = previous_friday_or_same(prev_end_shown)
+        cur_start = normal_friday + datetime.timedelta(days=1)
+        cur_end = cur_start + datetime.timedelta(days=6)
     cur_range = (cur_start, cur_end)
     prev_level = extract_prev_level(prs)
 
     rows = load_occurrences(args.planilha)
-    cur_rows = [r for r in rows if in_range(r, *cur_range)]
+    for r in rows:
+        r["semana"] = classify_week(r, cur_start, cur_end)
+    cur_rows = [r for r in rows if r["semana"] == "atual"]
     regua = suggest_regua(prev_level, cur_rows)
 
-    print(f"Semana anterior: {prev_start:%d/%m/%Y} a {prev_end:%d/%m/%Y}")
+    normal_prev_start = cur_start - datetime.timedelta(days=7)
+    normal_prev_end = cur_start - datetime.timedelta(days=1)
+    puxados = [r for r in rows if r["classif"] == "ACA" and cur_start <= r["data"] <= cur_start + datetime.timedelta(days=2)]
+
+    print(f"Semana anterior (relatório já publicado): {prev_start_shown:%d/%m/%Y} a {prev_end_shown:%d/%m/%Y}")
+    print(f"Semana anterior (janela normal p/ contagem): {normal_prev_start:%d/%m/%Y} a {normal_prev_end:%d/%m/%Y}")
     print(f"Semana atual:    {cur_start:%d/%m/%Y} a {cur_end:%d/%m/%Y}")
     print(f"Ocorrências na semana atual: {len(cur_rows)}")
+    if puxados:
+        detalhe = "; ".join(f"{r['unidade']} {r['data']:%d/%m}" for r in puxados)
+        print(f"ACA(s) puxado(s) para o relatório anterior (não duplicado aqui): {detalhe}")
     print(f"Régua: {fmt_nivel(regua['prev_level'])} -> {fmt_nivel(regua['new_level'])}  ({regua['nota']})")
     if regua["motivos"]:
         print("Motivos:", "; ".join(regua["motivos"]))
 
     edit_slide1(prs, cur_start, cur_end)
-    edit_slide3(prs, rows, prev_range, cur_range, regua)
-    edit_slide4(prs, rows, prev_range, cur_range, regua)
+    edit_slide3(prs, rows, regua)
+    edit_slide4(prs, rows, cur_range, regua)
     edit_slide5(prs, rows, cur_range)
     delete_slide(prs, 5)  # slide 6 — ETE/meio ambiente: sem fonte de dados, removido
     print("Slide 6 (ETE/meio ambiente) removido — sem fonte de dados nesta planilha.")
