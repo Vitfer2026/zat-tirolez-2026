@@ -114,6 +114,43 @@ def ladder_label_top(v):
     return _ladder_top(v, _LADDER_LABEL_REF)
 
 
+# Barras de "OCORRÊNCIAS POR TIPO" (slide 3): geometria lida do template
+# original (Shape 247/251 = Desvios prev/cur, cuja largura é count*BAR_SCALE
+# a partir de BAR_LEFT — mesma escala confirmada em todas as métricas).
+BAR_LEFT = 7480000
+BAR_SCALE = 300000
+BAR_HEIGHT = 235000
+BAR_LABEL_GAP = 30000
+BAR_PREV_TOP_OFFSET = -90000
+BAR_CUR_TOP_OFFSET = 215000
+
+
+def set_bar_shape(grupo, template_name, target_top, count_, color_hex, tol=5000):
+    """Garante uma barra (shape sem texto) em `target_top` dentro do grupo,
+    com largura proporcional a `count_`. Se a contagem for zero, zera a
+    largura da barra existente (ou não cria nenhuma). Se a barra não
+    existir no template (porque a contagem original era zero) e a nova
+    contagem for maior que zero, clona `template_name` para criá-la."""
+    for c in grupo.shapes:
+        txt = c.text_frame.text.strip() if c.has_text_frame else ""
+        if not txt and abs(c.top - target_top) <= tol:
+            c.width = Emu(max(count_, 0) * BAR_SCALE)
+            return
+    if count_ <= 0:
+        return
+    template = find_by_name(grupo.shapes, template_name)
+    new_el = copy.deepcopy(template._element)
+    grupo._element.append(new_el)
+    nova = list(grupo.shapes)[-1]
+    nova.name = f"{template_name} (barra {target_top})"
+    nova.top = Emu(target_top)
+    nova.left = Emu(BAR_LEFT)
+    nova.height = Emu(BAR_HEIGHT)
+    nova.width = Emu(count_ * BAR_SCALE)
+    nova.fill.solid()
+    nova.fill.fore_color.rgb = RGBColor.from_string(color_hex)
+
+
 def avoid_label_overlap(top_a, top_b, min_gap=340000):
     """Os dois rótulos ('Sem. passada'/'Esta semana') têm ~320000 EMU de
     altura; quando os níveis ficam próximos (comum, já que a variação
@@ -489,8 +526,18 @@ def edit_slide3(prs, rows, regua):
             classif = metric_map[s.text_frame.text.strip()]
             valores = [c for c in children[idx + 1:] if c.has_text_frame and c.text_frame.text.strip()]
             prev_shape, cur_shape = valores[0], valores[1]
-            set_run_text(prev_shape, str(count(prev_rows, classif)))
-            set_run_text(cur_shape, str(count(cur_rows, classif)))
+            n_prev, n_cur = count(prev_rows, classif), count(cur_rows, classif)
+            set_run_text(prev_shape, str(n_prev))
+            set_run_text(cur_shape, str(n_cur))
+
+            # a barra ao lado de cada número tem largura proporcional à contagem
+            # (BAR_SCALE EMU por unidade) — sem isso ela fica travada na
+            # proporção da semana anterior, desproporcional ao valor novo.
+            label_top = s.top
+            set_bar_shape(grupo, "Shape 247", label_top + BAR_PREV_TOP_OFFSET, n_prev, "8A93AE")
+            set_bar_shape(grupo, "Shape 251", label_top + BAR_CUR_TOP_OFFSET, n_cur, "1F2A4A")
+            prev_shape.left = Emu(BAR_LEFT + n_prev * BAR_SCALE + BAR_LABEL_GAP)
+            cur_shape.left = Emu(BAR_LEFT + n_cur * BAR_SCALE + BAR_LABEL_GAP)
 
     # --- headline ---
     aca_n, asa_n, irrev_n = regua["aca_n"], regua["asa_n"], regua["irrev_n"]
@@ -636,8 +683,13 @@ def edit_slide4(prs, rows, cur_range, regua):
         vals = [pyramid_count(rows, classif, col, end) for col in PYRAMID_COLS]
         trajeto = pyramid_count(rows, classif, "TRAJETO", end)
         terceiro = pyramid_count(rows, classif, "TERCEIRO", end)
-        s_semana = sum(1 for r in rows if r["classif"] == classif and r["data"].isocalendar()[1] == iso_week and r["data"].isocalendar()[0] == end.isocalendar()[0])
-        s_mes = sum(1 for r in rows if r["classif"] == classif and r["data"].year == end.year and r["data"].month == end.month)
+        # "S <semana>" precisa bater com a mesma janela usada no resto do
+        # relatório (sábado–sexta, com a exceção do ACA) — usar apenas o
+        # número da semana ISO subcontava sempre que a semana do relatório
+        # não coincidia com a semana-calendário (era o caso: 12 vs. os 16
+        # reais da tabela do slide 5).
+        s_semana = sum(1 for r in rows if r["classif"] == classif and r["semana"] == "atual")
+        s_mes = sum(1 for r in rows if r["classif"] == classif and r["data"].year == end.year and r["data"].month == end.month and r["data"] <= end)
         ytd_total = sum(vals) + trajeto + terceiro
         linha = vals + [trajeto, terceiro, s_semana, s_mes, ytd_total]
         ytd[classif] = ytd_total
