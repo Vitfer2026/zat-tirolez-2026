@@ -90,14 +90,29 @@ headline do slide 3, headline e subtítulo "OCORRÊNCIAS MAIS GRAVES" do
 slide 4, e a nota "Irreversível: ... · +N ASA" do slide 3. Todas aparecem
 no `stdout` do script para conferência rápida.
 
+## "Semana passada" vem da apresentação anterior, não da planilha
+
+No slide 3 (contagens por tipo, quadro "Evolução por unidade", GERAL e
+"Totais da semana"), os números de **"semana passada" são lidos direto da
+apresentação anterior** — especificamente do que ela publicou como "esta
+semana" (`extract_prev_published`) — em vez de recalculados da planilha.
+
+Isso é proposital: a planilha é um documento vivo e pode ser corrigida
+depois que uma semana já foi publicada (reclassificar um Desvio como
+Incidente, adicionar um lançamento retroativo). Se "semana passada" fosse
+recalculado toda vez, a comparação semana-a-semana ficaria inconsistente
+com o que o time já viu — o mesmo evento que na v10 subiu "6→5" apareceria
+na v11 como "6→6", por exemplo, mesmo sem nada ter mudado de verdade. Só a
+**"esta semana"** (a coluna nova) é calculada da planilha; o YTD do slide 4
+também é recalculado do zero a cada rodada (isso é o esperado para um
+total acumulado).
+
+Consequência prática: **o `--pptx-anterior` passado ao script precisa ser
+sempre a última apresentação realmente publicada**, não uma versão
+descartada ou um rascunho — é dali que a próxima rodada lê a referência.
+
 ## Limitações conhecidas
 
-- Se a planilha for corrigida/atualizada **depois** que uma semana já foi
-  publicada (ex.: reclassificar um Desvio como Incidente, adicionar um
-  lançamento retroativo), os números de "semana passada" da próxima
-  rodada vão refletir a correção — podem não bater exatamente com o que
-  já foi publicado antes. Isso é esperado (a planilha é a fonte de
-  verdade), mas vale revisar se a diferença for grande.
 - O slide 6 (ETE) é excluído da apresentação gerada — a lógica de
   atualizá-lo (DQO/O₂/SD/kgDQO por unidade) não faz parte deste agente,
   pois essa planilha não tem esses dados. A saída sempre tem 5 slides.

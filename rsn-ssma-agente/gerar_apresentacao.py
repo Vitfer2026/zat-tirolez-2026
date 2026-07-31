@@ -301,6 +301,69 @@ def extract_prev_level(prs):
     raise RuntimeError("Não encontrei o nível 'Esta semana' da régua no slide 3 anterior.")
 
 
+def _parse_cur_side(text):
+    """De uma célula 'X→Y ▲/▼' (ou '–'), extrai Y — o valor que a
+    apresentação anterior publicou como 'esta semana' dela."""
+    text = text.strip()
+    if text in ("–", "-", ""):
+        return 0
+    m = re.search(r"(\d+)\s*→\s*(\d+)", text)
+    if m:
+        return int(m.group(2))
+    digits = re.sub(r"\D", "", text)
+    return int(digits) if digits else 0
+
+
+def extract_prev_published(prs):
+    """Lê, do slide 3 da apresentação anterior, os números que ela
+    publicou como 'esta semana' — para usar como referência 'semana
+    passada' na apresentação nova. Não recalcula nada a partir da
+    planilha: se a planilha for corrigida depois de uma semana já
+    publicada, a comparação semana-a-semana precisa continuar batendo
+    com o que as pessoas já viram, não com uma versão retroativamente
+    diferente."""
+    slide3 = prs.slides[2]
+    all_shapes = list(slide3.shapes)
+
+    metric_map_rev = {
+        "Desvios": "Desvio", "Incidentes": "Incidente", "Acid. s/ afast.": "ASA",
+        "Acid. c/ afast.": "ACA", "Irreversível": "Irreversível",
+    }
+    grupo = find_by_name(slide3.shapes, "Agrupar 5")
+    children = list(grupo.shapes)
+    metric_counts = {}
+    for idx, s in enumerate(children):
+        if s.has_text_frame and s.text_frame.text.strip() in metric_map_rev:
+            classif = metric_map_rev[s.text_frame.text.strip()]
+            valores = [c for c in children[idx + 1:] if c.has_text_frame and c.text_frame.text.strip()]
+            metric_counts[classif] = int(valores[1].text_frame.text.strip())
+
+    label_to_unit = {v: k for k, v in UNIT_LABEL_SLIDE3.items()}
+    unit_counts = {}
+    i = 0
+    while True:
+        u_shape = find_by_name(all_shapes, f"u{i}")
+        if u_shape is None:
+            break
+        label = u_shape.text_frame.text.strip()
+        unidade = label_to_unit.get(label, label)
+        unit_counts[unidade] = (
+            _parse_cur_side(find_by_name(all_shapes, f"c{i}-Desvios").text_frame.text),
+            _parse_cur_side(find_by_name(all_shapes, f"c{i}-Incidentes").text_frame.text),
+            _parse_cur_side(find_by_name(all_shapes, f"c{i}-ACA").text_frame.text),
+            _parse_cur_side(find_by_name(all_shapes, f"c{i}-Total").text_frame.text),
+        )
+        i += 1
+
+    geral = (
+        _parse_cur_side(find_by_name(all_shapes, "g-Desvios").text_frame.text),
+        _parse_cur_side(find_by_name(all_shapes, "g-Incidentes").text_frame.text),
+        _parse_cur_side(find_by_name(all_shapes, "g-ACA").text_frame.text),
+        _parse_cur_side(find_by_name(all_shapes, "g-Total").text_frame.text),
+    )
+    return dict(metric_counts=metric_counts, unit_counts=unit_counts, geral=geral)
+
+
 # --------------------------------------------------------------------------
 # Régua de maturidade — sugestão automática (ver README: revisar antes de publicar)
 # --------------------------------------------------------------------------
@@ -460,11 +523,16 @@ def edit_slide1(prs, start, end):
 # Slide 3 — termômetro de cultura
 # --------------------------------------------------------------------------
 
-def build_unit_matrix(rows):
-    units = sorted({r["unidade"] for r in rows if r["semana"] in ("anterior", "atual")})
+def build_unit_matrix(rows, prev_unit_counts):
+    """`prev_unit_counts` vem de extract_prev_published: os números que a
+    apresentação anterior já publicou como 'esta semana' de cada unidade,
+    usados aqui como a referência 'semana passada' (não recalculados da
+    planilha, para a comparação continuar batendo com o que foi publicado)."""
+    active_cur = {r["unidade"] for r in rows if r["semana"] == "atual"}
+    tem_prev_real = {u for u, v in prev_unit_counts.items() if v[3] > 0}
+    units = sorted(tem_prev_real | active_cur)
     data = []
     for u in units:
-        prev_rows = [r for r in rows if r["unidade"] == u and r["semana"] == "anterior"]
         cur_rows = [r for r in rows if r["unidade"] == u and r["semana"] == "atual"]
 
         def counts(rs):
@@ -473,8 +541,8 @@ def build_unit_matrix(rows):
             a = sum(1 for r in rs if r["classif"] == "ACA")
             return d, i, a, len(rs)
 
-        pd_, pi_, pa_, pt_ = counts(prev_rows)
         cd_, ci_, ca_, ct_ = counts(cur_rows)
+        pd_, pi_, pa_, pt_ = prev_unit_counts.get(u, (0, 0, 0, 0))
         data.append(dict(unidade=u, prev=(pd_, pi_, pa_, pt_), cur=(cd_, ci_, ca_, ct_)))
     data.sort(key=lambda x: (-x["cur"][3], -x["prev"][3], x["unidade"]))
     return data
@@ -490,7 +558,7 @@ def arrow_cell_text(prev, cur):
     return f"{prev}→{cur}"
 
 
-def edit_slide3(prs, rows, regua):
+def edit_slide3(prs, rows, regua, prev_published):
     slide = prs.slides[2]
     all_shapes = list(slide.shapes)
 
@@ -525,11 +593,16 @@ def edit_slide3(prs, rows, regua):
     set_run_text(find_by_name(all_shapes, "TextBox 223"), arrow_text)
 
     # --- ocorrências por tipo (grupo 'Agrupar 5') ---
+    # "semana passada" vem do que a apresentação anterior já publicou como
+    # "esta semana" (prev_published) — não é recalculado da planilha, para
+    # a comparação continuar batendo mesmo se a planilha for corrigida depois.
     cur_rows = [r for r in rows if r["semana"] == "atual"]
-    prev_rows = [r for r in rows if r["semana"] == "anterior"]
 
     def count(rs, classif):
         return sum(1 for r in rs if r["classif"] == classif)
+
+    def prev_count(classif):
+        return prev_published["metric_counts"].get(classif, 0)
 
     metric_map = {
         "Desvios": "Desvio",
@@ -545,7 +618,7 @@ def edit_slide3(prs, rows, regua):
             classif = metric_map[s.text_frame.text.strip()]
             valores = [c for c in children[idx + 1:] if c.has_text_frame and c.text_frame.text.strip()]
             prev_shape, cur_shape = valores[0], valores[1]
-            n_prev, n_cur = count(prev_rows, classif), count(cur_rows, classif)
+            n_prev, n_cur = prev_count(classif), count(cur_rows, classif)
             set_run_text(prev_shape, str(n_prev))
             set_run_text(cur_shape, str(n_cur))
 
@@ -586,7 +659,7 @@ def edit_slide3(prs, rows, regua):
     set_run_text(find_by_name(all_shapes, "TextBox 3"), headline)
 
     # --- quadro EVOLUÇÃO POR UNIDADE ---
-    matrix = build_unit_matrix(rows)
+    matrix = build_unit_matrix(rows, prev_published["unit_counts"])
     n_new = len(matrix)
     n_old = 8
     row_pitch = Emu(152000)
@@ -619,22 +692,21 @@ def edit_slide3(prs, rows, regua):
         card = find_by_name(slide.shapes, "Matriz card")
         card.height = Emu(card.height - shrink)
 
-    # GERAL = soma das linhas ativas
+    # GERAL: "esta semana" soma as linhas ativas; "semana passada" vem direto
+    # do que a apresentação anterior publicou como o próprio GERAL dela.
     g_d = sum(r["cur"][0] for r in matrix)
     g_i = sum(r["cur"][1] for r in matrix)
     g_a = sum(r["cur"][2] for r in matrix)
     g_t = sum(r["cur"][3] for r in matrix)
-    pg_d = sum(r["prev"][0] for r in matrix)
-    pg_i = sum(r["prev"][1] for r in matrix)
-    pg_a = sum(r["prev"][2] for r in matrix)
-    pg_t = sum(r["prev"][3] for r in matrix)
+    pg_d, pg_i, pg_a, pg_t = prev_published["geral"]
     set_run_text(find_by_name(slide.shapes, "g-Desvios"), arrow_cell_text(pg_d, g_d))
     set_run_text(find_by_name(slide.shapes, "g-Incidentes"), arrow_cell_text(pg_i, g_i))
     set_run_text(find_by_name(slide.shapes, "g-ACA"), arrow_cell_text(pg_a, g_a))
     set_run_text(find_by_name(slide.shapes, "g-Total"), arrow_cell_text(pg_t, g_t))
 
     # --- resumo (TOTAIS DA SEMANA) ---
-    acidentes_prev = count(prev_rows, "ACA") + count(prev_rows, "ASA")
+    aca_prev, asa_prev = prev_count("ACA"), prev_count("ASA")
+    acidentes_prev = aca_prev + asa_prev
     acidentes_cur = aca_n + asa_n
     if g_t == pg_t:
         delta_tot_txt = "± 0"
@@ -647,11 +719,11 @@ def edit_slide3(prs, rows, regua):
         f"Ocorrências {pg_t} → {g_t}  {delta_tot_txt}",
     )
     acc_arrow = "▲" if acidentes_cur > acidentes_prev else ("▼" if acidentes_cur < acidentes_prev else "")
-    aca_arrow = "▲" if aca_n > count(prev_rows, "ACA") else ("▼" if aca_n < count(prev_rows, "ACA") else "")
-    asa_arrow = "▲" if asa_n > count(prev_rows, "ASA") else ("▼" if asa_n < count(prev_rows, "ASA") else "")
+    aca_arrow = "▲" if aca_n > aca_prev else ("▼" if aca_n < aca_prev else "")
+    asa_arrow = "▲" if asa_n > asa_prev else ("▼" if asa_n < asa_prev else "")
     set_run_text(
         find_by_name(slide.shapes, "r-acc"),
-        f"Acidentes {acidentes_prev} → {acidentes_cur} {acc_arrow}  ·  ACA {count(prev_rows,'ACA')} → {aca_n} {aca_arrow}  ·  ASA {count(prev_rows,'ASA')} → {asa_n} {asa_arrow}",
+        f"Acidentes {acidentes_prev} → {acidentes_cur} {acc_arrow}  ·  ACA {aca_prev} → {aca_n} {aca_arrow}  ·  ASA {asa_prev} → {asa_n} {asa_arrow}",
     )
     asa_destaques = [r for r in cur_rows if r["classif"] == "ASA"]
     nota_extra = ""
@@ -904,6 +976,7 @@ def main():
         cur_end = cur_start + datetime.timedelta(days=6)
     cur_range = (cur_start, cur_end)
     prev_level = extract_prev_level(prs)
+    prev_published = extract_prev_published(prs)
 
     rows = load_occurrences(args.planilha)
     for r in rows:
@@ -935,7 +1008,7 @@ def main():
         print("Motivos:", "; ".join(regua["motivos"]))
 
     edit_slide1(prs, cur_start, cur_end)
-    edit_slide3(prs, rows, regua)
+    edit_slide3(prs, rows, regua, prev_published)
     edit_slide4(prs, rows, cur_range, regua)
     edit_slide5(prs, rows, cur_range)
     if len(prs.slides._sldIdLst) > 5:
