@@ -115,26 +115,39 @@ def ladder_label_top(v):
 
 
 # Barras de "OCORRÊNCIAS POR TIPO" (slide 3): geometria lida do template
-# original (Shape 247/251 = Desvios prev/cur, cuja largura é count*BAR_SCALE
-# a partir de BAR_LEFT — mesma escala confirmada em todas as métricas).
+# original (Shape 247/251 = Desvios prev/cur, cuja largura é count*escala a
+# partir de BAR_LEFT — mesma escala em todas as métricas, para as barras
+# ficarem comparáveis entre si). BAR_SCALE_MAX é a escala "ideal" do
+# template (300000 EMU/unidade); com contagens grandes ela é reduzida (ver
+# escala_barras) para a barra + rótulo não passarem da área do grupo.
 BAR_LEFT = 7480000
-BAR_SCALE = 300000
+BAR_SCALE_MAX = 300000
+BAR_LABEL_WIDTH = 500000
 BAR_HEIGHT = 235000
 BAR_LABEL_GAP = 30000
 BAR_PREV_TOP_OFFSET = -90000
 BAR_CUR_TOP_OFFSET = 215000
 
 
-def set_bar_shape(grupo, template_name, target_top, count_, color_hex, tol=5000):
+def escala_barras(grupo, max_count):
+    """Escala (EMU/unidade) que garante que a maior barra + seu rótulo
+    ainda cabem dentro da área do grupo — nunca maior que BAR_SCALE_MAX."""
+    if max_count <= 0:
+        return BAR_SCALE_MAX
+    largura_disponivel = (grupo.left + grupo.width) - BAR_LEFT - BAR_LABEL_WIDTH - BAR_LABEL_GAP
+    return max(1, min(BAR_SCALE_MAX, int(largura_disponivel / max_count)))
+
+
+def set_bar_shape(grupo, template_name, target_top, count_, color_hex, scale, tol=5000):
     """Garante uma barra (shape sem texto) em `target_top` dentro do grupo,
-    com largura proporcional a `count_`. Se a contagem for zero, zera a
-    largura da barra existente (ou não cria nenhuma). Se a barra não
-    existir no template (porque a contagem original era zero) e a nova
-    contagem for maior que zero, clona `template_name` para criá-la."""
+    com largura `count_ * scale`. Se a contagem for zero, zera a largura da
+    barra existente (ou não cria nenhuma). Se a barra não existir no
+    template (porque a contagem original era zero) e a nova contagem for
+    maior que zero, clona `template_name` para criá-la."""
     for c in grupo.shapes:
         txt = c.text_frame.text.strip() if c.has_text_frame else ""
         if not txt and abs(c.top - target_top) <= tol:
-            c.width = Emu(max(count_, 0) * BAR_SCALE)
+            c.width = Emu(max(count_, 0) * scale)
             return
     if count_ <= 0:
         return
@@ -146,7 +159,7 @@ def set_bar_shape(grupo, template_name, target_top, count_, color_hex, tol=5000)
     nova.top = Emu(target_top)
     nova.left = Emu(BAR_LEFT)
     nova.height = Emu(BAR_HEIGHT)
-    nova.width = Emu(count_ * BAR_SCALE)
+    nova.width = Emu(count_ * scale)
     nova.fill.solid()
     nova.fill.fore_color.rgb = RGBColor.from_string(color_hex)
 
@@ -658,23 +671,30 @@ def edit_slide3(prs, rows, regua, prev_published):
     }
     grupo = find_by_name(slide.shapes, "Agrupar 5")
     children = list(grupo.shapes)
+    metric_rows = []
     for idx, s in enumerate(children):
         if s.has_text_frame and s.text_frame.text.strip() in metric_map:
             classif = metric_map[s.text_frame.text.strip()]
             valores = [c for c in children[idx + 1:] if c.has_text_frame and c.text_frame.text.strip()]
             prev_shape, cur_shape = valores[0], valores[1]
             n_prev, n_cur = prev_count(classif), count(cur_rows, classif)
-            set_run_text(prev_shape, str(n_prev))
-            set_run_text(cur_shape, str(n_cur))
+            metric_rows.append((s, prev_shape, cur_shape, n_prev, n_cur))
 
-            # a barra ao lado de cada número tem largura proporcional à contagem
-            # (BAR_SCALE EMU por unidade) — sem isso ela fica travada na
-            # proporção da semana anterior, desproporcional ao valor novo.
-            label_top = s.top
-            set_bar_shape(grupo, "Shape 247", label_top + BAR_PREV_TOP_OFFSET, n_prev, "8A93AE")
-            set_bar_shape(grupo, "Shape 251", label_top + BAR_CUR_TOP_OFFSET, n_cur, "1F2A4A")
-            prev_shape.left = Emu(BAR_LEFT + n_prev * BAR_SCALE + BAR_LABEL_GAP)
-            cur_shape.left = Emu(BAR_LEFT + n_cur * BAR_SCALE + BAR_LABEL_GAP)
+    # a barra ao lado de cada número tem largura proporcional à contagem; a
+    # escala (EMU/unidade) é reduzida quando necessário para a maior barra +
+    # rótulo desta semana ainda caberem dentro da área do grupo — sem isso,
+    # semanas com contagens grandes empurram a barra e o número para fora
+    # do slide.
+    escala = escala_barras(grupo, max((v for row in metric_rows for v in row[3:]), default=0))
+
+    for s, prev_shape, cur_shape, n_prev, n_cur in metric_rows:
+        set_run_text(prev_shape, str(n_prev))
+        set_run_text(cur_shape, str(n_cur))
+        label_top = s.top
+        set_bar_shape(grupo, "Shape 247", label_top + BAR_PREV_TOP_OFFSET, n_prev, "8A93AE", escala)
+        set_bar_shape(grupo, "Shape 251", label_top + BAR_CUR_TOP_OFFSET, n_cur, "1F2A4A", escala)
+        prev_shape.left = Emu(BAR_LEFT + n_prev * escala + BAR_LABEL_GAP)
+        cur_shape.left = Emu(BAR_LEFT + n_cur * escala + BAR_LABEL_GAP)
 
     # --- headline ---
     aca_n, asa_n, irrev_n = regua["aca_n"], regua["asa_n"], regua["irrev_n"]
@@ -986,6 +1006,40 @@ def edit_slide5(prs, rows, cur_range):
         set_cell_text_keep_format(row.cells[4], r["classif"])
         set_cell_text_keep_format(row.cells[5], r["desc"])
         set_cell_farol(row.cells[0], r["classif"])
+
+    shrink_table_to_fit(tbl, tbl_shape.top, prs.slide_height)
+
+
+TABLE_BOTTOM_MARGIN = 344000  # folga original entre a tabela e a borda do slide, no template
+
+
+def shrink_table_to_fit(tbl, table_top, slide_height, bottom_margin=TABLE_BOTTOM_MARGIN):
+    """Se a tabela (após redimensionar os blocos de dados) ficar mais alta
+    do que o espaço disponível até a borda do slide, encolhe todas as
+    linhas proporcionalmente. A margem interna (marT/marB) de cada célula
+    encolhe pela metade da mesma redução de altura — preservando
+    exatamente a área útil para o texto, sem risco de cortar conteúdo."""
+    total_height = sum(r.height for r in tbl.rows)
+    available = slide_height - table_top - bottom_margin
+    if total_height <= available:
+        return
+    scale = available / total_height
+    for row in tbl.rows:
+        old_h = row.height
+        new_h = round(old_h * scale)
+        margin_delta = (old_h - new_h) // 2
+        for cell in row.cells:
+            tc_pr = cell._tc.find(qn("tcPr"))
+            if tc_pr is None:
+                continue
+            for attr in ("marT", "marB"):
+                atual = int(tc_pr.get(attr, "45720"))
+                tc_pr.set(attr, str(max(0, atual - margin_delta)))
+        row.height = Emu(new_h)
+    print(
+        f"Tabela do slide 5 encolhida em {round((1 - scale) * 100)}% "
+        f"(muitas ocorrências na semana) para caber no espaço do slide."
+    )
 
 
 # --------------------------------------------------------------------------
