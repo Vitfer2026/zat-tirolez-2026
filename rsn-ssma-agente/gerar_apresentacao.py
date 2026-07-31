@@ -217,6 +217,51 @@ def load_occurrences(xlsx_path):
     return rows
 
 
+BLOCO_LEVITARE_REGINA = {"Levitare", "Regina"}
+
+
+def load_occurrences_semana(xlsx_path):
+    """Carrega um consolidado semanal de aba única (colunas Data, Unidade,
+    Tipo, Classificação, Descrição — cabeçalho na linha 1), formato
+    alternativo ao load_occurrences (duas abas Tirolez/Levitare|Regina).
+    O bloco (Tirolez vs. Levitare|Regina) é inferido pela unidade."""
+    wb = openpyxl.load_workbook(xlsx_path, data_only=True)
+    ws = wb[wb.sheetnames[0]]
+    rows = []
+    for r in range(2, ws.max_row + 1):
+        data = ws.cell(r, 1).value
+        if isinstance(data, str):
+            try:
+                data = datetime.datetime.strptime(data.strip(), "%d/%m/%Y")
+            except ValueError:
+                continue
+        elif isinstance(data, datetime.date) and not isinstance(data, datetime.datetime):
+            data = datetime.datetime(data.year, data.month, data.day)
+        elif not isinstance(data, datetime.datetime):
+            continue
+        unidade_raw = (ws.cell(r, 2).value or "").strip()
+        unidade = canon_unit(unidade_raw)
+        rows.append(dict(
+            data=data,
+            unidade=unidade,
+            tipo=norm_tipo(ws.cell(r, 3).value),
+            classif=norm_classif(ws.cell(r, 4).value),
+            desc=(ws.cell(r, 5).value or "").strip(),
+            bloco="Levitare|Regina" if unidade in BLOCO_LEVITARE_REGINA else "Tirolez",
+        ))
+    return rows
+
+
+def merge_com_semana(master_rows, semana_rows, cur_start):
+    """Combina o histórico da planilha mestre (datas antes da semana atual
+    — necessário para o YTD do slide 4) com o consolidado semanal (datas a
+    partir de cur_start), que é tratado como a fonte mais completa/atual
+    para a semana em geração."""
+    base = [r for r in master_rows if r["data"] < cur_start]
+    atual = [r for r in semana_rows if r["data"] >= cur_start]
+    return base + atual
+
+
 def in_range(row, start, end):
     return start <= row["data"] <= end
 
@@ -954,6 +999,12 @@ def main():
     ap.add_argument("--saida", required=True)
     ap.add_argument("--inicio", help="dd/mm/aaaa — sobrepõe a inferência automática")
     ap.add_argument("--fim", help="dd/mm/aaaa — sobrepõe a inferência automática")
+    ap.add_argument(
+        "--semana",
+        help="consolidado semanal opcional (aba única: Data,Unidade,Tipo,Classificação,Descrição). "
+             "Substitui os dados de --planilha para a semana atual (datas >= início); "
+             "--planilha continua fornecendo o histórico para o YTD do slide 4.",
+    )
     args = ap.parse_args()
 
     prs = Presentation(args.pptx_anterior)
@@ -979,6 +1030,12 @@ def main():
     prev_published = extract_prev_published(prs)
 
     rows = load_occurrences(args.planilha)
+    if args.semana:
+        semana_rows = load_occurrences_semana(args.semana)
+        rows = merge_com_semana(rows, semana_rows, cur_start)
+        print(f"Usando '{args.semana}' para a semana atual ({len(semana_rows)} linhas no arquivo, "
+              f"{sum(1 for r in semana_rows if r['data'] >= cur_start)} dentro da janela); "
+              f"histórico de '{args.planilha}' mantido para datas anteriores.")
     for r in rows:
         r["semana"] = classify_week(r, cur_start, cur_end)
     cur_rows = [r for r in rows if r["semana"] == "atual"]

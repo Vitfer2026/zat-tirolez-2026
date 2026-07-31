@@ -22,6 +22,30 @@ O intervalo da semana é inferido automaticamente a partir do `--pptx-anterior`
 python3 gerar_apresentacao.py ... --inicio 18/07/2026 --fim 24/07/2026
 ```
 
+### Consolidado semanal opcional (`--semana`)
+
+Se a planilha mestre ainda não tiver todos os lançamentos da semana atual
+(ex.: um consolidado separado, feito à parte pelo time), passe-o com
+`--semana`:
+
+```bash
+python3 gerar_apresentacao.py \
+    --planilha SSMA_2026_Dados_e_Ocorrencias_Unificados_v01.xlsx \
+    --semana Ocorrencias_Semana_Consolidado.xlsx \
+    --pptx-anterior Pre_RSN_Atualizada_v10.pptx \
+    --saida Pre_RSN_Atualizada_v11.pptx
+```
+
+Formato esperado (aba única, cabeçalho na linha 1): `Data, Unidade, Tipo,
+Classificação, Descrição` — sem coluna Farol, sem separar Tirolez de
+Levitare\|Regina (o bloco é inferido pela unidade: Levitare/Regina vão para
+o bloco "Levitare\|Regina", o resto para "Tirolez"). As datas podem estar
+como texto `dd/mm/aaaa` ou como data real do Excel.
+
+Os dados desse arquivo **substituem** os de `--planilha` só para a semana
+atual (datas ≥ início); `--planilha` continua sendo a única fonte para o
+histórico anterior, necessário para o YTD do slide 4.
+
 ## Escopo (o que o agente atualiza)
 
 | Slide | O que é atualizado |

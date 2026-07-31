@@ -10,6 +10,11 @@ apresentação semanal a partir de dois insumos que o usuário deve fornecer:
 
 1. A planilha de ocorrências (abas "Tirolez" e "Levitare|Regina").
 2. A apresentação `.pptx` da semana anterior.
+3. (Opcional) Um consolidado semanal de aba única, se o usuário disser que
+   a planilha mestre ainda não tem todos os lançamentos da semana — passar
+   com `--semana`. Ver README para o formato esperado e como ele se
+   combina com a planilha mestre (mestre = histórico para o YTD; consolidado
+   semanal = fonte da semana atual).
 
 Leia `rsn-ssma-agente/README.md` primeiro — ele documenta o escopo exato
 (quais slides são tocados), a regra de fronteira de semana (sábado a
