@@ -224,28 +224,47 @@ def in_range(row, start, end):
 def previous_friday_or_same(d):
     """Retrocede `d` até a sexta-feira mais recente (ou mantém, se já for
     sexta). Usado para achar o fechamento normal de semana mesmo quando a
-    data mostrada foi estendida pela exceção de ACA (veja classify_week)."""
+    data mostrada foi estendida pela exceção de ACA (veja effective_week_start)."""
     days_since_friday = (d.weekday() - 4) % 7  # weekday(): seg=0 ... sex=4
     return d - datetime.timedelta(days=days_since_friday)
 
 
+def natural_week_start(d):
+    """Sábado que abre a semana (sábado–sexta) que contém `d`."""
+    days_since_saturday = (d.weekday() - 5) % 7  # weekday(): seg=0 ... sáb=5, dom=6
+    return d - datetime.timedelta(days=days_since_saturday)
+
+
+def effective_week_start(row):
+    """A que semana (identificada pelo sábado de abertura) uma ocorrência
+    pertence de fato, para fins de relatório — calculado a partir da
+    PRÓPRIA data do evento, nunca da semana que está sendo gerada agora.
+    Isso é essencial: assim o mesmo evento sempre cai na mesma semana,
+    rodada após rodada, mesmo quando semanas mais antigas são recalculadas
+    de novo (senão um ACA já publicado como 'puxado' para o ciclo anterior
+    voltaria a ser contado quando essa semana antiga for reaberta como
+    'semana passada' de uma rodada futura).
+
+    Exceção: um ACA que acontece entre sábado e segunda de sua própria
+    semana é reportado de imediato no relatório que está fechando — conta
+    para a semana ANTERIOR à sua, não a dele."""
+    nws = natural_week_start(row["data"])
+    dias_desde_sabado = (row["data"] - nws).days
+    if row["classif"] == "ACA" and dias_desde_sabado <= 2:
+        return nws - datetime.timedelta(days=7)
+    return nws
+
+
 def classify_week(row, cur_start, cur_end):
     """Classifica uma ocorrência como da semana 'anterior', 'atual', ou
-    nenhuma (None). Semanas normais são sábado a sexta (7 dias), sempre
-    contíguas: a semana anterior é sempre cur_start-7 .. cur_start-1.
-
-    Exceção: um ACA que acontece entre sábado e segunda da semana atual
-    (os 3 primeiros dias) é reportado de imediato no relatório que está
-    sendo fechado agora — conta como 'anterior', não 'atual' — para não
-    esperar o ciclo inteiro fechar antes de escalar um acidente grave."""
+    nenhuma (None), usando a semana efetiva (fixa) do evento — não a
+    janela de datas da rodada atual. `cur_start` deve ser sempre um
+    sábado e `cur_end = cur_start + 6 dias` (semana sábado–sexta)."""
+    ews = effective_week_start(row)
     prev_start = cur_start - datetime.timedelta(days=7)
-    prev_end = cur_start - datetime.timedelta(days=1)
-    exception_end = cur_start + datetime.timedelta(days=2)  # sábado + 2 = segunda
-    if row["classif"] == "ACA" and cur_start <= row["data"] <= exception_end:
+    if ews == prev_start:
         return "anterior"
-    if prev_start <= row["data"] <= prev_end:
-        return "anterior"
-    if cur_start <= row["data"] <= cur_end:
+    if ews == cur_start:
         return "atual"
     return None
 
@@ -870,6 +889,12 @@ def main():
     if args.inicio and args.fim:
         cur_start = datetime.datetime.strptime(args.inicio, "%d/%m/%Y")
         cur_end = datetime.datetime.strptime(args.fim, "%d/%m/%Y")
+        if cur_start.weekday() != 5 or cur_end != cur_start + datetime.timedelta(days=6):
+            raise RuntimeError(
+                f"--inicio ({args.inicio}) precisa ser um sábado e --fim precisa ser "
+                "exatamente 6 dias depois (semana sábado-sexta) — a classificação de "
+                "semana 'anterior'/'atual' depende disso."
+            )
     else:
         # semanas normais são sábado a sexta (7 dias); previous_friday_or_same
         # também acerta o caso em que a semana anterior foi mostrada "estendida"
@@ -888,15 +913,23 @@ def main():
 
     normal_prev_start = cur_start - datetime.timedelta(days=7)
     normal_prev_end = cur_start - datetime.timedelta(days=1)
-    puxados = [r for r in rows if r["classif"] == "ACA" and cur_start <= r["data"] <= cur_start + datetime.timedelta(days=2)]
+    puxados = [
+        r for r in rows
+        if r["classif"] == "ACA"
+        and effective_week_start(r) != natural_week_start(r["data"])
+        and normal_prev_start <= r["data"] <= cur_end
+    ]
 
     print(f"Semana anterior (relatório já publicado): {prev_start_shown:%d/%m/%Y} a {prev_end_shown:%d/%m/%Y}")
     print(f"Semana anterior (janela normal p/ contagem): {normal_prev_start:%d/%m/%Y} a {normal_prev_end:%d/%m/%Y}")
     print(f"Semana atual:    {cur_start:%d/%m/%Y} a {cur_end:%d/%m/%Y}")
     print(f"Ocorrências na semana atual: {len(cur_rows)}")
     if puxados:
-        detalhe = "; ".join(f"{r['unidade']} {r['data']:%d/%m}" for r in puxados)
-        print(f"ACA(s) puxado(s) para o relatório anterior (não duplicado aqui): {detalhe}")
+        detalhe = "; ".join(
+            f"{r['unidade']} {r['data']:%d/%m} (semana efetiva: {effective_week_start(r):%d/%m})"
+            for r in puxados
+        )
+        print(f"ACA(s) com regra de puxada aplicada — não recontado(s) nesta rodada: {detalhe}")
     print(f"Régua: {fmt_nivel(regua['prev_level'])} -> {fmt_nivel(regua['new_level'])}  ({regua['nota']})")
     if regua["motivos"]:
         print("Motivos:", "; ".join(regua["motivos"]))
@@ -905,8 +938,12 @@ def main():
     edit_slide3(prs, rows, regua)
     edit_slide4(prs, rows, cur_range, regua)
     edit_slide5(prs, rows, cur_range)
-    delete_slide(prs, 5)  # slide 6 — ETE/meio ambiente: sem fonte de dados, removido
-    print("Slide 6 (ETE/meio ambiente) removido — sem fonte de dados nesta planilha.")
+    if len(prs.slides._sldIdLst) > 5:
+        # slide 6 — ETE/meio ambiente: sem fonte de dados, removido. Se o
+        # --pptx-anterior já foi gerado por este script, ele já tem só 5
+        # slides — nesse caso não há nada a remover.
+        delete_slide(prs, 5)
+        print("Slide 6 (ETE/meio ambiente) removido — sem fonte de dados nesta planilha.")
 
     prs.save(args.saida)
     print(f"Gerado: {args.saida}")

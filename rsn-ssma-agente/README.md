@@ -46,15 +46,21 @@ juntas também definem os dois blocos da tabela do slide 5.
   fechamento da semana anterior — mesmo que o `.pptx` anterior mostre uma
   data de fim que não é sexta (isso acontece por causa da exceção do ACA
   abaixo; o script volta para a sexta mais recente antes de calcular).
-- **Exceção do ACA (sexta a segunda)**: um ACA que acontece entre sábado e
-  segunda da semana nova é reportado de imediato no relatório que está
-  sendo fechado (conta como "semana anterior", não espera o ciclo
-  seguinte) — por isso um relatório pode aparecer com a data de fim
-  "estendida" até esse ACA. O agente detecta esse ACA automaticamente
-  pela data e pelo classificador "ACA", soma-o na contagem da semana
-  anterior e **não o duplica** na semana atual — mesmo que a data dele já
-  esteja dentro do intervalo novo. Todo ACA puxado aparece no `stdout` do
-  script para conferência.
+- **Exceção do ACA (sábado a segunda)**: um ACA que acontece entre sábado e
+  segunda de sua própria semana é reportado de imediato no relatório que
+  está sendo fechado (conta para a semana ANTERIOR à dele, não espera o
+  ciclo seguinte) — por isso um relatório pode aparecer com a data de fim
+  "estendida" até esse ACA.
+  A semana efetiva de cada ACA é calculada a partir da **própria data do
+  evento** (`effective_week_start`), nunca da janela da rodada atual — por
+  isso ela não muda de uma rodada para outra. Isso é essencial: sem essa
+  regra, ao recalcular semanas passadas do zero em rodadas futuras, um ACA
+  já "puxado" para um ciclo dois relatórios atrás voltaria a ser contado
+  de novo na semana em que ele caiu no calendário (foi exatamente esse bug
+  que apareceu: um ACA de 18/07 já publicado em "11–17/07" reapareceu como
+  1 ACA na "semana passada" de um relatório de 25–31/07). Toda vez que um
+  ACA assim aparece na janela de duas semanas em vista, o script avisa no
+  `stdout` (sem contá-lo de novo).
 - **Quadro "Evolução por unidade" (slide 3) e cartões de ACA (slide 4)
   encolhem** para mostrar só as unidades/eventos realmente ativos —
   não ficam vagas fixas com "–". Se o número de unidades ativas (soma das
@@ -86,6 +92,12 @@ no `stdout` do script para conferência rápida.
 
 ## Limitações conhecidas
 
+- Se a planilha for corrigida/atualizada **depois** que uma semana já foi
+  publicada (ex.: reclassificar um Desvio como Incidente, adicionar um
+  lançamento retroativo), os números de "semana passada" da próxima
+  rodada vão refletir a correção — podem não bater exatamente com o que
+  já foi publicado antes. Isso é esperado (a planilha é a fonte de
+  verdade), mas vale revisar se a diferença for grande.
 - O slide 6 (ETE) é excluído da apresentação gerada — a lógica de
   atualizá-lo (DQO/O₂/SD/kgDQO por unidade) não faz parte deste agente,
   pois essa planilha não tem esses dados. A saída sempre tem 5 slides.
