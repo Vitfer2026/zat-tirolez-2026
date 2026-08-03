@@ -21,7 +21,7 @@ from collections import Counter
 
 import openpyxl
 from pptx import Presentation
-from pptx.util import Emu
+from pptx.util import Emu, Pt
 from pptx.dml.color import RGBColor
 from lxml import etree
 
@@ -1013,33 +1013,53 @@ def edit_slide5(prs, rows, cur_range):
 TABLE_BOTTOM_MARGIN = 344000  # folga original entre a tabela e a borda do slide, no template
 
 
-def shrink_table_to_fit(tbl, table_top, slide_height, bottom_margin=TABLE_BOTTOM_MARGIN):
+def shrink_table_to_fit(tbl, table_top, slide_height, bottom_margin=TABLE_BOTTOM_MARGIN, min_font_pt=4.0):
     """Se a tabela (após redimensionar os blocos de dados) ficar mais alta
-    do que o espaço disponível até a borda do slide, encolhe todas as
-    linhas proporcionalmente. A margem interna (marT/marB) de cada célula
-    encolhe pela metade da mesma redução de altura — preservando
-    exatamente a área útil para o texto, sem risco de cortar conteúdo."""
+    do que o espaço disponível até a borda do slide, encolhe as linhas.
+
+    Reduzir só a altura nominal (trHeight) não é suficiente: ela é apenas
+    uma altura MÍNIMA — se o texto (na mesma fonte, na mesma largura de
+    coluna) precisar de mais linhas do que essa altura comporta, o
+    PowerPoint expande a linha de volta na renderização, e o excesso
+    reaparece embaixo, cortando as últimas linhas da tabela (foi
+    exatamente o que aconteceu: a altura nominal cabia no cálculo, mas o
+    texto da Regina, no fim da tabela, ainda precisava do espaço
+    original). Por isso a fonte de cada célula também encolhe na mesma
+    proporção — isso sim reduz o espaço real que o texto precisa."""
     total_height = sum(r.height for r in tbl.rows)
     available = slide_height - table_top - bottom_margin
     if total_height <= available:
         return
     scale = available / total_height
+    hit_floor = False
     for row in tbl.rows:
         old_h = row.height
         new_h = round(old_h * scale)
         margin_delta = (old_h - new_h) // 2
         for cell in row.cells:
             tc_pr = cell._tc.find(qn("tcPr"))
-            if tc_pr is None:
-                continue
-            for attr in ("marT", "marB"):
-                atual = int(tc_pr.get(attr, "45720"))
-                tc_pr.set(attr, str(max(0, atual - margin_delta)))
+            if tc_pr is not None:
+                for attr in ("marT", "marB"):
+                    atual = int(tc_pr.get(attr, "45720"))
+                    tc_pr.set(attr, str(max(0, atual - margin_delta)))
+            for p in cell.text_frame.paragraphs:
+                for run in p.runs:
+                    if run.font.size:
+                        novo_pt = run.font.size.pt * scale
+                        if novo_pt < min_font_pt:
+                            novo_pt = min_font_pt
+                            hit_floor = True
+                        run.font.size = Pt(novo_pt)
         row.height = Emu(new_h)
     print(
         f"Tabela do slide 5 encolhida em {round((1 - scale) * 100)}% "
-        f"(muitas ocorrências na semana) para caber no espaço do slide."
+        f"(linhas + fonte) — muitas ocorrências na semana."
     )
+    if hit_floor:
+        print(
+            f"AVISO: a fonte da tabela do slide 5 bateu no piso de {min_font_pt}pt — "
+            "revisar visualmente, pode não caber perfeitamente mesmo assim."
+        )
 
 
 # --------------------------------------------------------------------------
