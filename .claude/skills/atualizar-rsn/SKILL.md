@@ -52,7 +52,7 @@ ACA/irreversíveis na semana).
    tente contornar automaticamente** — avisar o usuário que o template
    precisa de um ajuste manual (adicionar linha/cartão) antes de rodar
    de novo.
-6. O slide 6 (ETE/DQO) é **removido** da apresentação gerada — a saída
-   sempre tem 5 slides. Se a planilha de ETE estiver disponível no
-   futuro, adicionar esse slide de volta é uma extensão separada, fora
-   do escopo atual deste agente.
+6. O slide 6 (ETE/DQO), se existir no `--pptx-anterior`, **nunca é
+   tocado nem removido** — é copiado para a saída como está (mantido
+   por outro processo/planilha, fora do escopo deste agente). Sem
+   slide 6 no `--pptx-anterior`, a saída continua com 5 slides.

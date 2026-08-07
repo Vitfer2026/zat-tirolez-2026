@@ -55,7 +55,7 @@ histórico anterior, necessário para o YTD do slide 4.
 | 3 — Termômetro de Cultura | Contagens por classificação, nível da régua (sugestão), quadro "Evolução por unidade" (redimensionado conforme unidades ativas), totais da semana, headline |
 | 4 — Pirâmide de Segurança YTD | Tabela YTD completa (recomputada do zero a cada semana), KPIs, cartões de ACA/irreversível da semana (redimensionados), headline |
 | 5 — Log de ocorrências | Tabela detalhada (linhas adicionadas/removidas conforme o volume real da semana, cor do "Farol" por classificação) |
-| 6 — ETE (DQO/O₂/SD) | **Removido da apresentação gerada** — esta planilha não tem dados de ETE. Se ele precisar entrar na apresentação final, é um passo manual separado (feito em outra cópia/processo, fora deste agente). |
+| 6 — ETE (DQO/O₂/SD), se existir | **Nunca tocado.** Esta planilha não tem dados de ETE, então o agente não atualiza esse slide — mas também não o remove: se o `--pptx-anterior` tiver um slide 6 (mantido por outro processo/planilha), ele é copiado para a saída sem nenhuma alteração. Sem slide 6 no `--pptx-anterior`, a saída simplesmente continua com 5 slides. |
 
 ## Fonte de dados
 
@@ -137,9 +137,11 @@ descartada ou um rascunho — é dali que a próxima rodada lê a referência.
 
 ## Limitações conhecidas
 
-- O slide 6 (ETE) é excluído da apresentação gerada — a lógica de
-  atualizá-lo (DQO/O₂/SD/kgDQO por unidade) não faz parte deste agente,
-  pois essa planilha não tem esses dados. A saída sempre tem 5 slides.
+- O slide 6 (ETE) nunca é atualizado por este agente (sem dados na
+  planilha) — mas também nunca é removido. Se um slide 6 mantido por
+  outro processo estiver no `--pptx-anterior`, ele passa para a saída
+  intocado; ele já ficou desatualizado (ex.: título/datas de outra
+  semana) até que o processo dele próprio o atualize separadamente.
 - A validação visual (renderização das imagens do slide) depende do
   LibreOffice; em ambientes sem ele, valide com:
   ```bash

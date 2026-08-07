@@ -1142,12 +1142,12 @@ def main():
     edit_slide3(prs, rows, regua, prev_published)
     edit_slide4(prs, rows, cur_range, regua)
     edit_slide5(prs, rows, cur_range)
+    # slide 6 (ETE/meio ambiente) nunca é tocado nem removido por este agente —
+    # esta planilha não tem dados de ETE, e um processo separado pode ter
+    # adicionado ali um slide próprio (mantido fora deste script). Se o
+    # --pptx-anterior não tiver slide 6, a saída simplesmente continua com 5.
     if len(prs.slides._sldIdLst) > 5:
-        # slide 6 — ETE/meio ambiente: sem fonte de dados, removido. Se o
-        # --pptx-anterior já foi gerado por este script, ele já tem só 5
-        # slides — nesse caso não há nada a remover.
-        delete_slide(prs, 5)
-        print("Slide 6 (ETE/meio ambiente) removido — sem fonte de dados nesta planilha.")
+        print("Aviso: slide 6 presente no --pptx-anterior foi mantido sem alteração (fora do escopo deste agente).")
 
     prs.save(args.saida)
     print(f"Gerado: {args.saida}")
