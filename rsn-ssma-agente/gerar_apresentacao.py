@@ -281,48 +281,32 @@ def in_range(row, start, end):
 
 def previous_friday_or_same(d):
     """Retrocede `d` até a sexta-feira mais recente (ou mantém, se já for
-    sexta). Usado para achar o fechamento normal de semana mesmo quando a
-    data mostrada foi estendida pela exceção de ACA (veja effective_week_start)."""
+    sexta). Usado para achar o fechamento normal de semana a partir da
+    data mostrada no `--pptx-anterior`."""
     days_since_friday = (d.weekday() - 4) % 7  # weekday(): seg=0 ... sex=4
     return d - datetime.timedelta(days=days_since_friday)
 
 
-def natural_week_start(d):
-    """Sábado que abre a semana (sábado–sexta) que contém `d`."""
-    days_since_saturday = (d.weekday() - 5) % 7  # weekday(): seg=0 ... sáb=5, dom=6
-    return d - datetime.timedelta(days=days_since_saturday)
-
-
-def effective_week_start(row):
-    """A que semana (identificada pelo sábado de abertura) uma ocorrência
-    pertence de fato, para fins de relatório — calculado a partir da
-    PRÓPRIA data do evento, nunca da semana que está sendo gerada agora.
-    Isso é essencial: assim o mesmo evento sempre cai na mesma semana,
-    rodada após rodada, mesmo quando semanas mais antigas são recalculadas
-    de novo (senão um ACA já publicado como 'puxado' para o ciclo anterior
-    voltaria a ser contado quando essa semana antiga for reaberta como
-    'semana passada' de uma rodada futura).
-
-    Exceção: um ACA que acontece entre sábado e segunda de sua própria
-    semana é reportado de imediato no relatório que está fechando — conta
-    para a semana ANTERIOR à sua, não a dele."""
-    nws = natural_week_start(row["data"])
-    dias_desde_sabado = (row["data"] - nws).days
-    if row["classif"] == "ACA" and dias_desde_sabado <= 2:
-        return nws - datetime.timedelta(days=7)
-    return nws
-
-
 def classify_week(row, cur_start, cur_end):
-    """Classifica uma ocorrência como da semana 'anterior', 'atual', ou
-    nenhuma (None), usando a semana efetiva (fixa) do evento — não a
-    janela de datas da rodada atual. `cur_start` deve ser sempre um
-    sábado e `cur_end = cur_start + 6 dias` (semana sábado–sexta)."""
-    ews = effective_week_start(row)
+    """Classifica uma ocorrência como da semana 'anterior' (cur_start-7 ..
+    cur_start-1), 'atual' (cur_start .. cur_end) ou nenhuma (None).
+    `cur_start` deve ser sempre um sábado e `cur_end = cur_start + 6 dias`
+    (semana sábado–sexta).
+
+    Sem exceções por classificação: uma versão anterior deste agente
+    "puxava" um ACA de sábado/domingo/segunda para a semana anterior,
+    para não duplicar contagem quando "semana passada" era recalculada da
+    planilha. Isso ficou obsoleto quando "semana passada" passou a vir
+    direto do que a apresentação anterior já publicou
+    (extract_prev_published) — e continuar puxando escondia ACAs reais
+    da semana atual do log, dos cartões de destaque e das contagens
+    (o próprio ACA continuava entrando no YTD/no mês, só desaparecia da
+    comparação semanal — foi assim que o bug foi percebido)."""
     prev_start = cur_start - datetime.timedelta(days=7)
-    if ews == prev_start:
+    prev_end = cur_start - datetime.timedelta(days=1)
+    if prev_start <= row["data"] <= prev_end:
         return "anterior"
-    if ews == cur_start:
+    if cur_start <= row["data"] <= cur_end:
         return "atual"
     return None
 
@@ -616,6 +600,32 @@ def arrow_cell_text(prev, cur):
     return f"{prev}→{cur}"
 
 
+# Geometria do quadro "Evolução por unidade" (slide 3), lida da linha 0 do
+# template original — usada para clonar novas linhas (u{i} + c{i}-*) quando
+# o quadro precisa crescer de volta depois de uma rodada que o encolheu.
+UNIT_ROW_U_TOP0 = 5215000
+UNIT_ROW_C_TOP0 = 5224000
+UNIT_ROW_PITCH = 152000
+
+
+def create_unit_row(slide, i):
+    """Clona a linha 0 do quadro (u0 + c0-Desvios/Incidentes/ACA/Total)
+    para criar a vaga `i`, reposicionada na altura certa."""
+    template_u = find_by_name(slide.shapes, "u0")
+    new_el = copy.deepcopy(template_u._element)
+    slide.shapes._spTree.append(new_el)
+    novo_u = list(slide.shapes)[-1]
+    novo_u.name = f"u{i}"
+    novo_u.top = Emu(UNIT_ROW_U_TOP0 + i * UNIT_ROW_PITCH)
+    for col in ("Desvios", "Incidentes", "ACA", "Total"):
+        template_c = find_by_name(slide.shapes, f"c0-{col}")
+        new_el = copy.deepcopy(template_c._element)
+        slide.shapes._spTree.append(new_el)
+        novo_c = list(slide.shapes)[-1]
+        novo_c.name = f"c{i}-{col}"
+        novo_c.top = Emu(UNIT_ROW_C_TOP0 + i * UNIT_ROW_PITCH)
+
+
 def edit_slide3(prs, rows, regua, prev_published):
     slide = prs.slides[2]
     all_shapes = list(slide.shapes)
@@ -726,19 +736,29 @@ def edit_slide3(prs, rows, regua, prev_published):
     # --- quadro EVOLUÇÃO POR UNIDADE ---
     matrix = build_unit_matrix(rows, prev_published["unit_counts"])
     n_new = len(matrix)
-    n_old = 8
+    MAX_UNIDADES = 8
     row_pitch = Emu(152000)
-    if n_new > n_old:
+    # n_old é a quantidade de vagas que o --pptx-anterior REALMENTE tem, não
+    # um número fixo — uma rodada anterior pode já ter encolhido o quadro
+    # para menos de 8 unidades, e esta rodada pode precisar crescer de volta.
+    n_old = 0
+    while find_by_name(slide.shapes, f"u{n_old}") is not None:
+        n_old += 1
+    if n_new > MAX_UNIDADES:
         raise RuntimeError(
-            f"{n_new} unidades ativas excedem as {n_old} vagas do quadro 'EVOLUÇÃO POR UNIDADE'. "
+            f"{n_new} unidades ativas excedem as {MAX_UNIDADES} vagas do quadro 'EVOLUÇÃO POR UNIDADE'. "
             "Layout precisa de ajuste manual (adicionar linhas) antes de rodar o agente."
         )
 
-    for i in range(n_new, n_old):
-        for name in [f"u{i}", f"c{i}-Desvios", f"c{i}-Incidentes", f"c{i}-ACA", f"c{i}-Total"]:
-            sh = find_by_name(slide.shapes, name)
-            if sh is not None:
-                delete_shape(sh)
+    if n_new > n_old:
+        for i in range(n_old, n_new):
+            create_unit_row(slide, i)
+    elif n_new < n_old:
+        for i in range(n_new, n_old):
+            for name in [f"u{i}", f"c{i}-Desvios", f"c{i}-Incidentes", f"c{i}-ACA", f"c{i}-Total"]:
+                sh = find_by_name(slide.shapes, name)
+                if sh is not None:
+                    delete_shape(sh)
 
     for i, row in enumerate(matrix):
         set_run_text(find_by_name(slide.shapes, f"u{i}"), UNIT_LABEL_SLIDE3.get(row["unidade"], row["unidade"]))
@@ -1117,23 +1137,11 @@ def main():
 
     normal_prev_start = cur_start - datetime.timedelta(days=7)
     normal_prev_end = cur_start - datetime.timedelta(days=1)
-    puxados = [
-        r for r in rows
-        if r["classif"] == "ACA"
-        and effective_week_start(r) != natural_week_start(r["data"])
-        and normal_prev_start <= r["data"] <= cur_end
-    ]
 
     print(f"Semana anterior (relatório já publicado): {prev_start_shown:%d/%m/%Y} a {prev_end_shown:%d/%m/%Y}")
     print(f"Semana anterior (janela normal p/ contagem): {normal_prev_start:%d/%m/%Y} a {normal_prev_end:%d/%m/%Y}")
     print(f"Semana atual:    {cur_start:%d/%m/%Y} a {cur_end:%d/%m/%Y}")
     print(f"Ocorrências na semana atual: {len(cur_rows)}")
-    if puxados:
-        detalhe = "; ".join(
-            f"{r['unidade']} {r['data']:%d/%m} (semana efetiva: {effective_week_start(r):%d/%m})"
-            for r in puxados
-        )
-        print(f"ACA(s) com regra de puxada aplicada — não recontado(s) nesta rodada: {detalhe}")
     print(f"Régua: {fmt_nivel(regua['prev_level'])} -> {fmt_nivel(regua['new_level'])}  ({regua['nota']})")
     if regua["motivos"]:
         print("Motivos:", "; ".join(regua["motivos"]))

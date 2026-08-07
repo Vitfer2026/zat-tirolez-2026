@@ -67,24 +67,17 @@ juntas também definem os dois blocos da tabela do slide 5.
 
 - **Semanas normais vão de sábado a sexta (7 dias) e nunca se sobrepõem.**
   A semana atual é sempre inferida como o sábado seguinte à sexta de
-  fechamento da semana anterior — mesmo que o `.pptx` anterior mostre uma
-  data de fim que não é sexta (isso acontece por causa da exceção do ACA
-  abaixo; o script volta para a sexta mais recente antes de calcular).
-- **Exceção do ACA (sábado a segunda)**: um ACA que acontece entre sábado e
-  segunda de sua própria semana é reportado de imediato no relatório que
-  está sendo fechado (conta para a semana ANTERIOR à dele, não espera o
-  ciclo seguinte) — por isso um relatório pode aparecer com a data de fim
-  "estendida" até esse ACA.
-  A semana efetiva de cada ACA é calculada a partir da **própria data do
-  evento** (`effective_week_start`), nunca da janela da rodada atual — por
-  isso ela não muda de uma rodada para outra. Isso é essencial: sem essa
-  regra, ao recalcular semanas passadas do zero em rodadas futuras, um ACA
-  já "puxado" para um ciclo dois relatórios atrás voltaria a ser contado
-  de novo na semana em que ele caiu no calendário (foi exatamente esse bug
-  que apareceu: um ACA de 18/07 já publicado em "11–17/07" reapareceu como
-  1 ACA na "semana passada" de um relatório de 25–31/07). Toda vez que um
-  ACA assim aparece na janela de duas semanas em vista, o script avisa no
-  `stdout` (sem contá-lo de novo).
+  fechamento da semana anterior. Toda ocorrência conta para a semana em
+  que sua própria data cai — **sem excecões por classificação**: um ACA
+  nos primeiros dias da semana atual é contado na semana atual, não é
+  "adiantado" para a anterior. (Uma versão anterior deste agente tinha
+  essa exceção, criada para um caso histórico único de puxar um ACA de
+  sábado/domingo/segunda para o relatório que fechava. Ficou obsoleta
+  quando "semana passada" passou a vir do que a apresentação anterior já
+  publicou — ver seção abaixo — e continuar puxando escondia ACAs reais
+  da semana atual do log, dos destaques e das contagens semanais, mesmo
+  eles aparecendo corretamente no YTD/mês. Foi assim que o bug foi
+  percebido e removido.)
 - **Quadro "Evolução por unidade" (slide 3) e cartões de ACA (slide 4)
   encolhem** para mostrar só as unidades/eventos realmente ativos —
   não ficam vagas fixas com "–". Se o número de unidades ativas (soma das
