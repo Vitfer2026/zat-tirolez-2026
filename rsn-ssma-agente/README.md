@@ -79,8 +79,11 @@ juntas também definem os dois blocos da tabela do slide 5.
   eles aparecendo corretamente no YTD/mês. Foi assim que o bug foi
   percebido e removido.)
 - **Quadro "Evolução por unidade" (slide 3) e cartões de ACA (slide 4)
-  encolhem** para mostrar só as unidades/eventos realmente ativos —
-  não ficam vagas fixas com "–". Se o número de unidades ativas (soma das
+  encolhem e também crescem de volta** conforme o volume da semana, para
+  mostrar só as unidades/eventos realmente ativos — não ficam vagas fixas
+  com "–". Se uma rodada anterior encolheu para menos linhas/cartões do que
+  a semana atual precisa, eles são reclonados a partir do template com a
+  geometria e o estilo originais (`create_unit_row` / `create_aca_card`). Se o número de unidades ativas (soma das
   duas semanas) passar de 8, ou o número de ACA/irreversíveis da semana
   passar de 3, o script **para com erro** em vez de arriscar layout
   quebrado — nesse caso, adicione manualmente uma linha/cartão ao template
@@ -127,6 +130,15 @@ total acumulado).
 Consequência prática: **o `--pptx-anterior` passado ao script precisa ser
 sempre a última apresentação realmente publicada**, não uma versão
 descartada ou um rascunho — é dali que a próxima rodada lê a referência.
+
+## Leitura de datas na planilha
+
+A coluna "Data" às vezes é digitada como **texto** em vez de data real do
+Excel (ex.: `13/08/26` com um espaço não separável sobrando no fim), o que
+fazia essas linhas serem silenciosamente ignoradas. `parse_data_cell()`
+agora aceita datetime, date, e texto nos formatos `dd/mm/aaaa` ou
+`dd/mm/aa` (com ou sem `\xa0` sobrando), tanto na planilha mestre quanto no
+consolidado semanal opcional (`--semana`).
 
 ## Limitações conhecidas
 

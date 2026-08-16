@@ -209,14 +209,34 @@ def fmt_nivel(v):
 # Carga da planilha
 # --------------------------------------------------------------------------
 
+def parse_data_cell(value):
+    """Aceita datetime, date, ou texto 'dd/mm/aaaa'/'dd/mm/aa' — a planilha
+    às vezes tem a data digitada manualmente como texto em vez de data real
+    do Excel (inclusive com espaço não separável \\xa0 sobrando no fim),
+    e essas linhas ficavam silenciosamente de fora. Retorna None se não
+    conseguir reconhecer nada."""
+    if isinstance(value, datetime.datetime):
+        return value
+    if isinstance(value, datetime.date):
+        return datetime.datetime(value.year, value.month, value.day)
+    if isinstance(value, str):
+        texto = value.replace("\xa0", " ").strip()
+        for fmt in ("%d/%m/%Y", "%d/%m/%y"):
+            try:
+                return datetime.datetime.strptime(texto, fmt)
+            except ValueError:
+                continue
+    return None
+
+
 def load_occurrences(xlsx_path):
     wb = openpyxl.load_workbook(xlsx_path, data_only=True)
     rows = []
     for sheet, bloco in [("Tirolez", "Tirolez"), ("Levitare|Regina", "Levitare|Regina")]:
         ws = wb[sheet]
         for r in range(5, ws.max_row + 1):
-            data = ws.cell(r, 2).value
-            if not isinstance(data, datetime.datetime):
+            data = parse_data_cell(ws.cell(r, 2).value)
+            if data is None:
                 continue
             unidade_raw = (ws.cell(r, 3).value or "").strip()
             rows.append(dict(
@@ -242,15 +262,8 @@ def load_occurrences_semana(xlsx_path):
     ws = wb[wb.sheetnames[0]]
     rows = []
     for r in range(2, ws.max_row + 1):
-        data = ws.cell(r, 1).value
-        if isinstance(data, str):
-            try:
-                data = datetime.datetime.strptime(data.strip(), "%d/%m/%Y")
-            except ValueError:
-                continue
-        elif isinstance(data, datetime.date) and not isinstance(data, datetime.datetime):
-            data = datetime.datetime(data.year, data.month, data.day)
-        elif not isinstance(data, datetime.datetime):
+        data = parse_data_cell(ws.cell(r, 1).value)
+        if data is None:
             continue
         unidade_raw = (ws.cell(r, 2).value or "").strip()
         unidade = canon_unit(unidade_raw)
@@ -661,6 +674,27 @@ def create_unit_row(slide, i):
         novo_c.top = Emu(UNIT_ROW_C_TOP0 + i * UNIT_ROW_PITCH)
 
 
+# Geometria dos cartões "ocorrências mais graves" (slide 4) — lida da linha
+# 1 do template original, usada para reclonar cartões 2/3 quando uma rodada
+# anterior os removeu (menos de 2/3 ACA/irreversíveis) e a semana atual
+# precisa deles de volta.
+ACA_CARD_PITCH = 3870960
+
+
+def create_aca_card(slide, i):
+    """Clona os shapes do cartão 1 (Rectangle_ACA_bar_1/bg_1 + TextBox_ACA_1)
+    para recriar a vaga `i` (2 ou 3), deslocada horizontalmente."""
+    all_shapes = list(slide.shapes)
+    offset = (i - 1) * ACA_CARD_PITCH
+    for prefix in ("Rectangle_ACA_bar_", "Rectangle_ACA_bg_", "TextBox_ACA_"):
+        template = find_by_name(all_shapes, f"{prefix}1")
+        new_el = copy.deepcopy(template._element)
+        slide.shapes._spTree.append(new_el)
+        novo = list(slide.shapes)[-1]
+        novo.name = f"{prefix}{i}"
+        novo.left = Emu(template.left + offset)
+
+
 def edit_slide3(prs, rows, regua, prev_published):
     slide = prs.slides[2]
     all_shapes = list(slide.shapes)
@@ -974,6 +1008,10 @@ def edit_slide4(prs, rows, cur_range, regua):
                 if sh is not None:
                     delete_shape(sh)
     else:
+        for i in range(1, len(graves) + 1):
+            if find_by_name(all_shapes, f"TextBox_ACA_{i}") is None:
+                create_aca_card(slide, i)
+                all_shapes = list(slide.shapes)
         for i in range(len(graves), n_slots):
             for prefix in ("Rectangle_ACA_bar_", "Rectangle_ACA_bg_", "TextBox_ACA_"):
                 sh = find_by_name(all_shapes, f"{prefix}{i + 1}")
