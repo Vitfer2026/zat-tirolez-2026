@@ -1099,6 +1099,13 @@ def main():
              "Substitui os dados de --planilha para a semana atual (datas >= início); "
              "--planilha continua fornecendo o histórico para o YTD do slide 4.",
     )
+    ap.add_argument(
+        "--remover-slide6",
+        action="store_true",
+        help="remove o slide 6 (ETE/meio ambiente) da saída. Por padrão ele é "
+             "preservado intocado, já que é mantido por outro processo — passe "
+             "esta flag só quando o pedido for explicitamente para excluí-lo.",
+    )
     args = ap.parse_args()
 
     prs = Presentation(args.pptx_anterior)
@@ -1150,12 +1157,15 @@ def main():
     edit_slide3(prs, rows, regua, prev_published)
     edit_slide4(prs, rows, cur_range, regua)
     edit_slide5(prs, rows, cur_range)
-    # slide 6 (ETE/meio ambiente) nunca é tocado nem removido por este agente —
-    # esta planilha não tem dados de ETE, e um processo separado pode ter
-    # adicionado ali um slide próprio (mantido fora deste script). Se o
-    # --pptx-anterior não tiver slide 6, a saída simplesmente continua com 5.
+    # slide 6 (ETE/meio ambiente): esta planilha não tem dados de ETE, e um
+    # processo separado pode manter ali um slide próprio. Por padrão ele é
+    # preservado intocado; só sai da apresentação com --remover-slide6.
     if len(prs.slides._sldIdLst) > 5:
-        print("Aviso: slide 6 presente no --pptx-anterior foi mantido sem alteração (fora do escopo deste agente).")
+        if args.remover_slide6:
+            delete_slide(prs, 5)
+            print("Slide 6 (ETE/meio ambiente) removido a pedido (--remover-slide6).")
+        else:
+            print("Aviso: slide 6 presente no --pptx-anterior foi mantido sem alteração (fora do escopo deste agente).")
 
     prs.save(args.saida)
     print(f"Gerado: {args.saida}")
