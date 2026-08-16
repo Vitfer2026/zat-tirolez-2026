@@ -565,6 +565,41 @@ def edit_slide1(prs, start, end):
 # Slide 3 — termômetro de cultura
 # --------------------------------------------------------------------------
 
+def remapear_unidades_anteriores(prev_unit_counts, remaps):
+    """Move as contagens já publicadas de uma unidade para outra, no quadro
+    "Evolução por unidade" da semana passada.
+
+    Serve para o caso em que a planilha corrigiu retroativamente a QUAL
+    unidade uma ocorrência pertence (ex.: um ACA lançado como Matriz ADM e
+    depois reclassificado para Merchandising). Como "semana passada" vem do
+    que a apresentação anterior publicou, ela carregaria a atribuição
+    errada para sempre — e não dá para deduzir isso automaticamente da
+    planilha, porque ela também recebe lançamentos retroativos legítimos
+    naquela mesma semana (aí a diferença deixa de ser só re-atribuição).
+    Por isso a correção é explícita, uma por rodada, via --corrigir-unidade.
+
+    `remaps` é uma lista de strings "De=Para" (nomes de unidade).
+    """
+    if not remaps:
+        return prev_unit_counts
+    novo = dict(prev_unit_counts)
+    for spec in remaps:
+        if "=" not in spec:
+            raise RuntimeError(f"--corrigir-unidade espera 'De=Para', recebi: {spec!r}")
+        de_raw, para_raw = spec.split("=", 1)
+        de, para = canon_unit(de_raw), canon_unit(para_raw)
+        if de not in novo:
+            raise RuntimeError(
+                f"--corrigir-unidade: '{de}' não aparece no quadro da apresentação anterior "
+                f"(unidades disponíveis: {', '.join(sorted(novo))})."
+            )
+        movido = novo.pop(de)
+        atual = novo.get(para, (0, 0, 0, 0))
+        novo[para] = tuple(a + b for a, b in zip(atual, movido))
+        print(f"Semana passada: contagens de '{de}' {movido} movidas para '{para}' → {novo[para]}.")
+    return novo
+
+
 def build_unit_matrix(rows, prev_unit_counts):
     """`prev_unit_counts` vem de extract_prev_published: os números que a
     apresentação anterior já publicou como 'esta semana' de cada unidade,
@@ -1100,6 +1135,16 @@ def main():
              "--planilha continua fornecendo o histórico para o YTD do slide 4.",
     )
     ap.add_argument(
+        "--corrigir-unidade",
+        action="append",
+        default=[],
+        metavar="DE=PARA",
+        help="corrige a unidade de ocorrências JÁ PUBLICADAS na semana passada, no "
+             "quadro 'Evolução por unidade' (ex.: --corrigir-unidade 'Matriz ADM=Merchandising'). "
+             "Use quando a planilha reclassificou retroativamente a unidade de uma "
+             "ocorrência. Pode repetir a opção.",
+    )
+    ap.add_argument(
         "--remover-slide6",
         action="store_true",
         help="remove o slide 6 (ETE/meio ambiente) da saída. Por padrão ele é "
@@ -1129,6 +1174,9 @@ def main():
     cur_range = (cur_start, cur_end)
     prev_level = extract_prev_level(prs)
     prev_published = extract_prev_published(prs)
+    prev_published["unit_counts"] = remapear_unidades_anteriores(
+        prev_published["unit_counts"], args.corrigir_unidade
+    )
 
     rows = load_occurrences(args.planilha)
     if args.semana:
